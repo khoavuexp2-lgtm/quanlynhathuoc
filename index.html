@@ -1082,6 +1082,32 @@
             }
         };
 
+        // Gợi ý thông minh khi nhập tên hàng để Nhập kho
+        document.getElementById('imp-name').addEventListener('input', (e) => {
+            const v = e.target.value, sugg = document.getElementById('imp-name-suggest');
+            if(!v || !fuseProducts) {
+                sugg.classList.add('hidden');
+                if(!v) fillImportForm({}); // Xóa rỗng nếu xóa hết tên
+                return; 
+            }
+            
+            const res = fuseProducts.search(v).slice(0,5);
+            if(res.length) {
+                sugg.innerHTML = res.map(r => `
+                    <div class="p-3 border-b cursor-pointer active:bg-slate-100 hover:bg-slate-50" onclick='selectImportSuggest("${r.item.id}")'>
+                        <p class="font-bold text-slate-800">${r.item.name}</p>
+                        <p class="text-xs text-slate-500">Mã: ${r.item.barcode || 'N/A'} | Tồn hiện tại: <span class="font-bold text-indigo-600">${r.item.stock}</span></p>
+                    </div>`).join('');
+                sugg.classList.remove('hidden');
+            } else sugg.classList.add('hidden');
+        });
+
+        window.selectImportSuggest = (id) => {
+            let p = products.find(x => x.id === id);
+            if(p) fillImportForm(p);
+            document.getElementById('imp-name-suggest').classList.add('hidden');
+        };
+
         window.fillImportForm = (p) => {
             document.getElementById('imp-id').value = p.id || '';
             document.getElementById('imp-name').value = p.name || '';
@@ -1090,6 +1116,9 @@
             document.getElementById('imp-price-out').value = p.sell_price || '';
             document.getElementById('imp-qty').value = '';
             document.getElementById('imp-hsd').value = p.hsd || '';
+            
+            // Ẩn bảng gợi ý nếu đang mở
+            document.getElementById('imp-name-suggest')?.classList.add('hidden');
         };
 
         window.saveImportData = async () => {
