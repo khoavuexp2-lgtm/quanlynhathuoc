@@ -377,9 +377,23 @@
         import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global Env Variables injected by platform
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'demo-pharma-app';
-        let firebaseConfig = {};
-        try { firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {}; } catch(e){}
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quanly-nhathuoc-app';
+        
+        // Sử dụng Config của bạn để App chạy được trên Vercel
+        let firebaseConfig = {
+            apiKey: "AIzaSyA3BTAfXaLg2GeXgyxewlW4uIU69ngc_Is",
+            authDomain: "quanly-nhathuoc.firebaseapp.com",
+            projectId: "quanly-nhathuoc",
+            storageBucket: "quanly-nhathuoc.firebasestorage.app",
+            messagingSenderId: "989382797162",
+            appId: "1:989382797162:web:b1333c7db7e1ba84916713"
+        };
+        try { 
+            if (typeof __firebase_config !== 'undefined') {
+                firebaseConfig = JSON.parse(__firebase_config); 
+            }
+        } catch(e){}
+        
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         const app = initializeApp(firebaseConfig);
@@ -424,6 +438,16 @@
             } catch (err) {
                 console.error("Auth Error:", err);
                 showToast("Lỗi kết nối CSDL!", "bg-red-500");
+                const loading = document.getElementById('loading-screen');
+                loading.innerHTML = `
+                    <i class="fa-solid fa-triangle-exclamation text-5xl text-red-500 mb-4"></i>
+                    <p class="text-red-600 font-bold text-center px-4 mb-2">Lỗi kết nối Firebase!</p>
+                    <ul class="text-sm text-gray-600 list-decimal text-left px-8 space-y-2 mt-4 font-semibold">
+                        <li>Truy cập Firebase Console > Authentication > tab Sign-in method > <b>Bật trạng thái "Anonymous" (Ẩn danh)</b>.</li>
+                        <li>Chuyển sang tab Settings > mục Authorized domains > <b>Thêm tên miền Vercel của bạn vào</b>.</li>
+                    </ul>
+                    <button onclick="window.location.reload()" class="mt-6 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold shadow">Thử lại</button>
+                `;
             }
         }
 
