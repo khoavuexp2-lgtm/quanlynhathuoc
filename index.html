@@ -81,13 +81,57 @@
     <!-- Modal Nhập Nhanh Sản Phẩm Mới -->
     <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 class="text-xl font-bold mb-4 text-gray-800">Sản phẩm chưa có trong dữ liệu</h3>
-            <p class="text-sm text-gray-600 mb-4">Mã <span id="qa-barcode" class="font-bold text-blue-600"></span> chưa tồn tại. Nhập tên để thêm vào hệ thống và giỏ hàng ngay.</p>
-            <input type="text" id="qa-name" placeholder="Tên sản phẩm..." class="w-full p-3 border rounded-xl mb-4 focus:ring-2 focus:ring-blue-500 outline-none">
-            <input type="number" id="qa-price" placeholder="Giá bán (VNĐ)..." class="w-full p-3 border rounded-xl mb-6 focus:ring-2 focus:ring-blue-500 outline-none">
+            <h3 class="text-xl font-bold mb-4 text-gray-800">Thêm Sản Phẩm Mới</h3>
+            <div class="space-y-3 mb-6">
+                <div>
+                    <label class="text-xs font-bold text-gray-500">Mã sản phẩm / Mã vạch</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="qa-barcode" placeholder="Quét hoặc tạo tự động..." class="flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-600">
+                        <button onclick="document.getElementById('qa-barcode').value = 'SP' + uuid().toUpperCase().substring(0, 6)" class="bg-gray-100 px-3 rounded-xl hover:bg-gray-200 text-gray-600" title="Tạo mã ngẫu nhiên"><i class="fa-solid fa-dice"></i></button>
+                        <button onclick="startScanner('qa-barcode')" class="bg-blue-100 px-3 rounded-xl hover:bg-blue-200 text-blue-600" title="Quét mã vạch"><i class="fa-solid fa-barcode"></i></button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500">Tên sản phẩm</label>
+                    <input type="text" id="qa-name" placeholder="Ví dụ: Panadol Extra..." class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500">Giá bán (VNĐ)</label>
+                    <input type="number" id="qa-price" placeholder="Ví dụ: 15000" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+            </div>
             <div class="flex gap-3">
                 <button onclick="closeQuickAdd()" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200">Hủy</button>
                 <button onclick="saveQuickAdd()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700">Lưu & Thêm vào giỏ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thêm Khách Hàng Mới -->
+    <div id="customer-add-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-gray-800">Thêm Khách Hàng Mới</h3>
+            <div class="space-y-3 mb-6">
+                <div>
+                    <label class="text-xs font-bold text-gray-500">Mã KH (Quét thẻ hoặc tạo ngẫu nhiên)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="ca-barcode" placeholder="Mã khách hàng..." class="flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-600">
+                        <button onclick="document.getElementById('ca-barcode').value = 'KH' + uuid().toUpperCase().substring(0, 6)" class="bg-gray-100 px-3 rounded-xl hover:bg-gray-200 text-gray-600" title="Tạo mã ngẫu nhiên"><i class="fa-solid fa-dice"></i></button>
+                        <button onclick="startScanner('ca-barcode')" class="bg-blue-100 px-3 rounded-xl hover:bg-blue-200 text-blue-600" title="Quét thẻ cứng/Mã vạch"><i class="fa-solid fa-qrcode"></i></button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500">Tên Khách Hàng</label>
+                    <input type="text" id="ca-name" placeholder="Tên khách hàng..." class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500">Số điện thoại (Tùy chọn)</label>
+                    <input type="tel" id="ca-phone" placeholder="Số điện thoại..." class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeCustomerAdd()" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200">Hủy</button>
+                <button onclick="saveCustomerAdd()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700">Lưu Khách Hàng</button>
             </div>
         </div>
     </div>
@@ -101,7 +145,8 @@
                 <div class="flex gap-2 items-center relative">
                     <i class="fa-solid fa-user-tag text-blue-400"></i>
                     <input type="text" id="pos-customer-input" placeholder="Nhập Tên hoặc Mã KH..." class="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-semibold" autocomplete="off">
-                    <button onclick="startScanner('customer')" class="text-gray-500 hover:text-blue-600 px-2"><i class="fa-solid fa-qrcode text-lg"></i></button>
+                    <button onclick="startScanner('customer')" class="text-gray-500 hover:text-blue-600 px-2" title="Quét mã KH"><i class="fa-solid fa-qrcode text-lg"></i></button>
+                    <button onclick="showCustomerAdd()" class="text-blue-500 hover:text-blue-700 px-2" title="Thêm KH mới"><i class="fa-solid fa-user-plus text-lg"></i></button>
                     <!-- Gợi ý KH -->
                     <div id="pos-customer-suggest" class="absolute top-full left-0 right-0 bg-white border rounded-lg shadow-xl mt-1 hidden z-20 max-h-48 overflow-y-auto"></div>
                 </div>
@@ -242,6 +287,10 @@
 
         <!-- TAB 5: KHÁCH HÀNG -->
         <div id="tab-khachhang" class="tab-content h-full p-3">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-bold text-gray-700">Danh sách Khách hàng</h2>
+                <button onclick="showCustomerAdd()" class="bg-blue-100 text-blue-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-200"><i class="fa-solid fa-plus"></i> Thêm Mới</button>
+            </div>
             <div class="flex gap-2 mb-4">
                 <input type="text" id="cust-search-input" placeholder="Tìm tên, mã, SĐT khách..." class="flex-1 p-3 bg-white border rounded-xl shadow-sm outline-none">
                 <button onclick="startScanner('search-cust')" class="bg-gray-800 text-white px-4 rounded-xl shadow"><i class="fa-solid fa-qrcode text-xl"></i></button>
@@ -542,7 +591,7 @@
             
             const res = fuseCustomers.search(v).slice(0, 3);
             if(res.length === 0) {
-                sug.innerHTML = `<div class="p-3 text-blue-600 font-bold cursor-pointer hover:bg-blue-50" onclick="createNewCustomer('${v}')">+ Tạo mới KH: ${v}</div>`;
+                sug.innerHTML = `<div class="p-3 text-blue-600 font-bold cursor-pointer hover:bg-blue-50" onclick="showCustomerAdd('${v}')">+ Tạo mới KH: ${v}</div>`;
             } else {
                 sug.innerHTML = res.map(r => `
                     <div class="p-3 border-b hover:bg-gray-50 cursor-pointer" onclick="selectCustomer('${r.item.id}')">
@@ -595,7 +644,7 @@
             
             const res = fuseProducts.search(v).slice(0, 5);
             if(res.length === 0) {
-                sug.innerHTML = `<div class="p-3 text-red-500 font-bold cursor-pointer hover:bg-red-50" onclick="showQuickAdd('${v}')">+ Chưa có trong kho. Tạo nhanh?</div>`;
+                sug.innerHTML = `<div class="p-3 text-red-500 font-bold cursor-pointer hover:bg-red-50" onclick="showQuickAdd('${v}')">+ Chưa có trong kho. Tạo mới ngay?</div>`;
             } else {
                 sug.innerHTML = res.map(r => `
                     <div class="p-3 border-b hover:bg-gray-50 cursor-pointer flex justify-between" onclick="addToCart('${r.item.id}')">
@@ -607,17 +656,18 @@
             sug.classList.remove('hidden');
         });
 
-        // Quick Add Modal (chưa có trong CSDL)
-        window.showQuickAdd = (barcodeOrName) => {
+        // Quick Add Modal (Sản phẩm)
+        window.showQuickAdd = (inputVal = '') => {
             document.getElementById('pos-product-suggest').classList.add('hidden');
             document.getElementById('pos-product-input').value = '';
-            document.getElementById('qa-barcode').innerText = barcodeOrName;
             
-            // Đoán xem input là mã hay tên (nếu toàn số là mã)
-            if(/^\d+$/.test(barcodeOrName)) {
+            // Đoán xem input là mã hay tên (nếu toàn chữ số hoặc viết hoa và dài thì ưu tiên vào ô Mã vạch)
+            if(/^[0-9A-Z]+$/.test(inputVal) && inputVal.length > 5 && !inputVal.includes(' ')) {
+                document.getElementById('qa-barcode').value = inputVal;
                 document.getElementById('qa-name').value = '';
             } else {
-                document.getElementById('qa-name').value = barcodeOrName;
+                document.getElementById('qa-barcode').value = 'SP' + uuid().toUpperCase().substring(0, 6);
+                document.getElementById('qa-name').value = inputVal;
             }
             document.getElementById('qa-price').value = '';
             document.getElementById('quick-add-modal').classList.remove('hidden');
@@ -625,10 +675,10 @@
         window.closeQuickAdd = () => document.getElementById('quick-add-modal').classList.add('hidden');
         window.saveQuickAdd = async () => {
             if(!userId) return;
-            const name = document.getElementById('qa-name').value;
+            const name = document.getElementById('qa-name').value.trim();
             const price = Number(document.getElementById('qa-price').value) || 0;
-            const barcode = document.getElementById('qa-barcode').innerText;
-            if(!name) return showToast('Nhập tên SP!');
+            const barcode = document.getElementById('qa-barcode').value.trim();
+            if(!name || !barcode) return showToast('Vui lòng nhập Tên và Mã sản phẩm!');
             
             try {
                 const docRef = await addDoc(colPath('products'), { name, barcode, sell_price: price, stock: 0, import_price: 0, added_at: Date.now() });
@@ -636,7 +686,35 @@
                 addToCart(docRef.id);
                 // Bắn qua dự trù luôn vì kho = 0
                 await addDoc(colPath('needs'), { name, barcode, product_id: docRef.id, added_at: Date.now() });
-                showToast('Đã thêm & đưa vào dự trù!', 'bg-green-500');
+                showToast('Đã thêm SP & đưa vào dự trù!', 'bg-green-500');
+            } catch(e) { console.error(e); }
+        }
+
+        // Customer Add Modal (Khách hàng)
+        window.showCustomerAdd = (inputVal = '') => {
+            document.getElementById('pos-customer-suggest').classList.add('hidden');
+            document.getElementById('pos-customer-input').value = '';
+            
+            document.getElementById('ca-barcode').value = 'KH' + uuid().toUpperCase().substring(0, 6);
+            document.getElementById('ca-name').value = inputVal;
+            document.getElementById('ca-phone').value = '';
+            
+            document.getElementById('customer-add-modal').classList.remove('hidden');
+        }
+        window.closeCustomerAdd = () => document.getElementById('customer-add-modal').classList.add('hidden');
+        window.saveCustomerAdd = async () => {
+            if(!userId) return;
+            const name = document.getElementById('ca-name').value.trim();
+            const barcode = document.getElementById('ca-barcode').value.trim();
+            const phone = document.getElementById('ca-phone').value.trim();
+            
+            if(!name || !barcode) return showToast('Vui lòng nhập Tên và Mã KH!');
+            
+            try {
+                const docRef = await addDoc(colPath('customers'), { name, barcode, phone, points: 0, created_at: Date.now() });
+                closeCustomerAdd();
+                selectCustomer(docRef.id);
+                showToast('Đã lưu thông tin Khách Hàng!', 'bg-green-500');
             } catch(e) { console.error(e); }
         }
 
@@ -1105,10 +1183,20 @@
                         document.getElementById('cust-search-input').dispatchEvent(new Event('input'));
                     }
                 }
-                else showToast('Không tìm thấy khách', 'bg-red-500');
+                else {
+                    showToast('Khách mới! Mở bảng lưu thông tin...', 'bg-blue-500');
+                    showCustomerAdd();
+                    document.getElementById('ca-barcode').value = code;
+                }
             } else if (scanContext === 'dutru') {
                 document.getElementById('need-input').value = code;
                 addToNeeds(code);
+            } else if (scanContext === 'qa-barcode') {
+                // Quét mã ngay trong bảng thêm Sản phẩm
+                document.getElementById('qa-barcode').value = code;
+            } else if (scanContext === 'ca-barcode') {
+                // Quét thẻ ngay trong bảng thêm Khách hàng
+                document.getElementById('ca-barcode').value = code;
             }
         }
 
