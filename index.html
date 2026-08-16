@@ -50,6 +50,43 @@
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans h-screen flex flex-col overflow-hidden">
 
+    <!-- MÀN HÌNH ĐĂNG NHẬP -->
+    <div id="login-screen" class="fixed inset-0 bg-blue-600 z-[300] flex flex-col items-center justify-center p-4 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl transform transition-transform">
+            <div class="text-center mb-8">
+                <div class="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600 shadow-inner">
+                    <i class="fa-solid fa-notes-medical text-4xl"></i>
+                </div>
+                <h1 class="text-2xl font-extrabold text-gray-800">HỆ THỐNG POS</h1>
+                <p class="text-sm text-gray-500 mt-2 font-medium">Vui lòng đăng nhập để quản lý</p>
+            </div>
+            
+            <form id="login-form" onsubmit="event.preventDefault(); handleLogin();" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">Tài khoản</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-4 top-3.5 text-gray-400"></i>
+                        <input type="text" id="login-id" required class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors font-semibold text-gray-700" placeholder="Nhập tài khoản...">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">Mật khẩu</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-4 top-3.5 text-gray-400"></i>
+                        <input type="password" id="login-pass" required class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors font-semibold text-gray-700" placeholder="Nhập mật khẩu...">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-[0_8px_15px_rgba(37,99,235,0.3)] hover:bg-blue-700 active:scale-95 transition-all mt-4 text-lg">
+                    ĐĂNG NHẬP
+                </button>
+            </form>
+        </div>
+        <p class="text-blue-200 text-xs mt-8">Bản quyền thuộc về Nội Bộ</p>
+    </div>
+
+    <!-- WRAPPER CHÍNH CỦA APP (Ẩn khi chưa đăng nhập) -->
+    <div id="app-layout" class="hidden w-full h-full flex flex-col">
+
     <!-- Thông báo (Toast) -->
     <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[200] hidden px-5 py-3 rounded-full shadow-2xl text-white font-bold transition-all flex items-center gap-2"></div>
 
@@ -246,43 +283,58 @@
         </div>
 
         <!-- TAB 3: NHẬP HÀNG -->
-        <div id="tab-nhaphang" class="tab-content h-full p-3">
-            <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-xl mb-4 text-xs text-yellow-700 shadow-sm">
-                <i class="fa-solid fa-lightbulb"></i> HSD nhập dạng <b>ddmmyy</b> (VD: 150825). Bỏ trống hệ thống tự tính HSD 1 năm.
+        <div id="tab-nhaphang" class="tab-content h-full p-3 flex flex-col relative">
+            <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-xl mb-4 text-xs text-yellow-700 shadow-sm shrink-0">
+                <i class="fa-solid fa-lightbulb"></i> HSD nhập dạng <b>ddmmyy</b> (VD: 150826). Bỏ trống hệ thống tự tính HSD 1 năm (Auto).
             </div>
             
-            <div class="flex justify-between items-center border-b pb-2 mb-3">
-                <h3 class="font-bold text-gray-700">Danh sách chờ nhập</h3>
-                <button onclick="pullFromNeeds()" class="text-xs font-bold bg-blue-100 text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-200">
-                    <i class="fa-solid fa-cloud-arrow-down"></i> Lấy từ Dự Trù
-                </button>
-            </div>
-
-            <div id="import-list" class="space-y-4 pb-20">
-                <div class="text-center text-gray-400 mt-10">
-                    <p>Chưa có danh sách.</p>
-                    <button onclick="addBlankImportRow()" class="mt-3 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-bold">+ Thêm dòng mới</button>
+            <div class="shrink-0 border-b pb-3 mb-3">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-truck-fast text-blue-500"></i> Đơn Hàng Đang Chờ Về</h3>
+                    <button onclick="addBlankImportRow()" class="text-xs font-bold bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 shadow-sm transition-colors">
+                        <i class="fa-solid fa-plus"></i> Nhập Lẻ Mới
+                    </button>
+                </div>
+                <div id="pending-orders-list" class="flex gap-3 overflow-x-auto no-scrollbar py-1">
+                    <!-- Stream: Pending orders go here -->
                 </div>
             </div>
 
-            <div class="fixed bottom-20 left-0 right-0 p-3 bg-gradient-to-t from-gray-50 to-transparent">
-                <button onclick="saveImportsToInventory()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 max-w-md mx-auto block">
+            <div class="flex justify-between items-center mb-2 shrink-0">
+                <h3 class="font-bold text-gray-700 text-sm" id="import-form-title">Chi tiết phiếu nhập</h3>
+            </div>
+
+            <div id="import-list" class="flex-1 overflow-y-auto space-y-4 pb-24">
+                <div class="text-center text-gray-400 mt-10">
+                    <p>Chọn một đơn chờ phía trên hoặc tạo dòng nhập lẻ mới.</p>
+                </div>
+            </div>
+
+            <div class="absolute bottom-4 left-4 right-4 pointer-events-none">
+                <button id="btn-save-imports" onclick="saveImportsToInventory()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-[0_8px_20px_rgba(37,99,235,0.4)] hover:bg-blue-700 active:scale-[0.98] transition-transform max-w-md mx-auto block pointer-events-auto hidden">
                     <i class="fa-solid fa-box-archive"></i> CHỐT NHẬP KHO
                 </button>
             </div>
         </div>
 
         <!-- TAB 4: DỰ TRÙ (CẦN NHẬP) -->
-        <div id="tab-dutru" class="tab-content h-full p-3">
-            <div class="bg-white p-4 rounded-xl shadow-sm mb-4 border">
-                <h2 class="font-bold text-gray-700 mb-2">Thêm hàng vào danh sách</h2>
+        <div id="tab-dutru" class="tab-content h-full p-3 relative flex flex-col">
+            <div class="bg-white p-4 rounded-xl shadow-sm mb-4 border shrink-0">
+                <h2 class="font-bold text-gray-700 mb-2">Thêm hàng vào danh sách Dự trù</h2>
                 <div class="flex gap-2">
                     <input type="text" id="need-input" placeholder="Tên hàng hoặc quét mã..." class="flex-1 p-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
                     <button onclick="startScanner('dutru')" class="bg-gray-800 text-white px-4 rounded-lg shadow"><i class="fa-solid fa-barcode"></i></button>
                     <button onclick="addToNeeds()" class="bg-blue-600 text-white px-4 rounded-lg shadow font-bold text-sm">Thêm</button>
                 </div>
             </div>
-            <div id="needs-list" class="space-y-2 pb-10"></div>
+            
+            <div id="needs-list" class="flex-1 overflow-y-auto space-y-2 pb-24"></div>
+
+            <div class="absolute bottom-4 left-4 right-4">
+                <button onclick="markNeedsAsOrdered()" class="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-[0_8px_20px_rgba(22,163,74,0.4)] hover:bg-green-700 active:scale-[0.98] transition-transform max-w-md mx-auto flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-check-double"></i> ĐÃ ĐẶT HÀNG (CHUYỂN QUA CHỜ NHẬP)
+                </button>
+            </div>
         </div>
 
         <!-- TAB 5: KHÁCH HÀNG -->
@@ -309,6 +361,11 @@
 
         <!-- TAB 6: ADMIN -->
         <div id="tab-admin" class="tab-content h-full p-3">
+            <!-- Nút đăng xuất -->
+            <button onclick="handleLogout()" class="w-full bg-red-100 text-red-600 font-bold py-3 rounded-xl mb-4 shadow-sm border border-red-200 hover:bg-red-200 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-right-from-bracket"></i> Đăng Xuất Khỏi Hệ Thống
+            </button>
+
             <div class="bg-white p-5 rounded-2xl shadow-sm border mb-4">
                 <h3 class="font-bold text-gray-800 mb-4 border-b pb-2"><i class="fa-solid fa-gears text-blue-500"></i> Cấu hình Tích Điểm</h3>
                 
@@ -331,9 +388,14 @@
                 </div>
             </div>
             
-            <div class="bg-white p-5 rounded-2xl shadow-sm border">
-                 <h3 class="font-bold text-gray-800 mb-2"><i class="fa-solid fa-clock-rotate-left text-blue-500"></i> Lịch sử Đơn Hàng Gần Đây</h3>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border mb-4">
+                 <h3 class="font-bold text-gray-800 mb-2"><i class="fa-solid fa-clock-rotate-left text-blue-500"></i> Lịch sử Bán Hàng Gần Đây</h3>
                  <div id="admin-orders-list" class="space-y-3 max-h-60 overflow-y-auto mt-2"></div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border mb-10">
+                 <h3 class="font-bold text-gray-800 mb-2"><i class="fa-solid fa-box-open text-green-500"></i> Lịch sử Nhập Kho Gần Đây</h3>
+                 <div id="admin-imports-list" class="space-y-3 max-h-60 overflow-y-auto mt-2"></div>
             </div>
         </div>
     </main>
@@ -420,6 +482,8 @@
         </div>
     </div>
 
+    </div> <!-- ĐÓNG APP LAYOUT -->
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -457,16 +521,65 @@
         let orders = [];
         let settings = { money_per_point: 100000, point_value: 1000 };
         
+        let pendingOrdersDb = [];
+        let activeImportOrderId = null;
+        let importHistoryDb = [];
+
         let fuseProducts, fuseCustomers;
         let posCart = [];
         let posCurrentCustomer = null;
         let pendingImports = [];
-        let html5QrcodeScanner = null;
+        let html5QrCode = null; // Khởi tạo biến lưu Camera
         let scanContext = ''; // 'banhang', 'customer', 'dutru', 'nhaphang', 'search-cust'
 
         // Rule 1: Always use public path so all store devices share data
         const colPath = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
         const docPath = (colName, id) => doc(db, 'artifacts', appId, 'public', 'data', colName, id);
+
+        // --- HỆ THỐNG ĐĂNG NHẬP (LOGIN & SESSION) ---
+        const ADMIN_USER = 'admin'; // Đổi tài khoản ở đây
+        const ADMIN_PASS = '123456'; // Đổi mật khẩu ở đây
+
+        window.handleLogin = function() {
+            const user = document.getElementById('login-id').value.trim();
+            const pass = document.getElementById('login-pass').value;
+
+            if (user === ADMIN_USER && pass === ADMIN_PASS) {
+                // Lưu trạng thái đăng nhập vào LocalStorage (lưu vĩnh viễn cho đến khi Đăng xuất)
+                localStorage.setItem('pos_logged_in', 'true');
+                document.getElementById('login-id').value = '';
+                document.getElementById('login-pass').value = '';
+                showApp();
+            } else {
+                showToast('Tài khoản hoặc mật khẩu không đúng!', 'bg-red-500');
+            }
+        }
+
+        window.handleLogout = function() {
+            if(confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+                localStorage.removeItem('pos_logged_in');
+                window.location.reload(); // Tải lại trang để reset toàn bộ state
+            }
+        }
+
+        function checkSession() {
+            const isLoggedIn = localStorage.getItem('pos_logged_in');
+            if (isLoggedIn === 'true') {
+                showApp();
+            } else {
+                // Đảm bảo ẩn màn hình loading mặc định nếu chưa đăng nhập
+                document.getElementById('loading-screen').classList.add('hidden');
+            }
+        }
+
+        function showApp() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-layout').classList.remove('hidden');
+            document.getElementById('app-layout').classList.add('flex'); // Trả lại flexbox
+            document.getElementById('loading-screen').classList.remove('hidden'); // Bật lại loading cho Firebase
+            initSystem(); // Bắt đầu kết nối Firebase
+        }
+
 
         // --- INIT AUTH & LISTENERS ---
         async function initSystem() {
@@ -535,6 +648,18 @@
                 renderAdminOrders();
             }, (e) => console.error(e));
 
+            // Đơn chờ nhập (Pending Orders)
+            onSnapshot(colPath('pending_orders'), (snap) => {
+                pendingOrdersDb = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b)=>b.created_at - a.created_at);
+                renderPendingOrders();
+            }, (e) => console.error(e));
+
+            // Lịch sử nhập kho (Import History)
+            onSnapshot(colPath('import_history'), (snap) => {
+                importHistoryDb = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b)=>b.created_at - a.created_at);
+                renderAdminImports();
+            }, (e) => console.error(e));
+
             // Settings
             onSnapshot(docPath('settings', 'rules'), (docSnap) => {
                 if (docSnap.exists()) {
@@ -545,8 +670,8 @@
             }, (e) => console.error(e));
         }
 
-        // Bắt đầu
-        initSystem();
+        // Bắt đầu bằng việc kiểm tra Session thay vì khởi tạo thẳng
+        checkSession();
 
         window.formatNum = (num) => new Intl.NumberFormat('vi-VN').format(num || 0);
         window.parseNum = (str) => Number(str.replace(/[^0-9.-]+/g,""));
@@ -930,96 +1055,88 @@
                         } return false;
                     });
                 }
-            }
+        // Tab Nhập hàng & Dự trù chuyển đổi
+        window.markNeedsAsOrdered = async () => {
+            if(!userId || needs.length === 0) return showToast('Danh sách dự trù đang trống!');
             
-            // Sort: Hết hàng/Cận date lên đầu
-            filtered.sort((a,b) => a.stock - b.stock);
-
-            list.innerHTML = filtered.map(p => `
-                <div class="bg-white p-3 rounded-xl border shadow-sm flex flex-col gap-1">
-                    <div class="flex justify-between font-bold">
-                        <span class="text-gray-800">${p.name}</span>
-                        <span class="px-2 py-0.5 rounded text-sm ${p.stock<=5?'bg-red-100 text-red-600':'bg-green-100 text-green-700'}">Tồn: ${p.stock||0}</span>
-                    </div>
-                    <div class="flex justify-between text-xs text-gray-500 items-center mt-1">
-                        <span>Mã: ${p.barcode||'---'} | HSD: <b class="text-orange-500">${p.expiry_date||'---'}</b></span>
-                        ${p.stock<=5 ? `<button onclick="addToNeeds('${p.barcode}', '${p.name}')" class="bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold hover:bg-blue-100"><i class="fa-solid fa-plus"></i> Dự trù</button>` : ''}
-                    </div>
-                </div>
-            `).join('');
-
-            // Cập nhật thống kê
-            let totalMoney = products.reduce((sum, p) => sum + (p.stock * (p.import_price||0)), 0);
-            document.getElementById('inv-stat-items').innerText = products.length;
-            document.getElementById('inv-stat-money').innerText = formatNum(totalMoney);
-        }
-
-        document.getElementById('inv-search').addEventListener('input', (e) => {
-            const activeBtn = document.querySelector('.inv-btn.active');
-            let t = 'all';
-            if(activeBtn.innerText.includes('hết')) t = 'low';
-            if(activeBtn.innerText.includes('Cận')) t = 'exp';
-            renderInventory(t, e.target.value);
-        });
-
-        // Tự động quét hàng <5 đưa vào Cần Nhập nếu chưa có
-        async function checkLowStockToNeeds() {
-            if(!userId) return;
-            const lows = products.filter(p => p.stock <= 5);
-            for(let p of lows) {
-                const exist = needs.find(n => n.barcode === p.barcode || n.name === p.name);
-                if(!exist) {
-                    await addDoc(colPath('needs'), { name: p.name, barcode: p.barcode, added_at: Date.now() });
-                }
-            }
-        }
-
-        // Tab Dự trù
-        window.addToNeeds = async (bc = null, nm = null) => {
-            if(!userId) return;
-            const input = document.getElementById('need-input');
-            let val = nm || input.value.trim();
-            if(!val && bc) val = bc;
-            if(!val) return;
-
-            let finalName = val, finalBc = bc || '';
-            if(!nm && fuseProducts) {
-                const res = fuseProducts.search(val);
-                if(res.length>0 && res[0].score < 0.2) { finalName = res[0].item.name; finalBc = res[0].item.barcode; }
-            }
-
             try {
-                await addDoc(colPath('needs'), { name: finalName, barcode: finalBc, added_at: Date.now() });
-                input.value = ''; showToast('Đã thêm dự trù');
+                // Đẩy toàn bộ sang bảng "Chờ Nhập Kho"
+                await addDoc(colPath('pending_orders'), {
+                    created_at: Date.now(),
+                    items: needs.map(n => ({ name: n.name, barcode: n.barcode || '' }))
+                });
+                
+                // Xóa danh sách dự trù hiện tại cho sạch
+                for(let n of needs) {
+                    await deleteDoc(docPath('needs', n.id));
+                }
+                
+                showToast('Đã chốt đặt hàng! Chuyển qua chờ nhập.', 'bg-green-500');
+                switchTab('nhaphang', 'Nhập Kho');
+            } catch(e) { console.error(e); showToast('Có lỗi xảy ra', 'bg-red-500'); }
+        }
+
+        window.deletePendingOrder = async (id) => {
+            if(!userId) return;
+            try {
+                await deleteDoc(docPath('pending_orders', id));
+                if(activeImportOrderId === id) {
+                    activeImportOrderId = null;
+                    document.getElementById('import-form-title').innerText = "Chi tiết phiếu nhập";
+                    pendingImports = [];
+                    renderImportList();
+                }
+                showToast('Đã xóa phiếu chờ nhập', 'bg-gray-800');
             } catch(e) { console.error(e); }
         }
 
-        function renderNeedsList() {
-            const list = document.getElementById('needs-list');
-            if(needs.length===0) return list.innerHTML = `<p class="text-center text-gray-400 mt-10">Danh sách trống</p>`;
-            list.innerHTML = needs.map(n => `
-                <div class="bg-white p-3 rounded-lg border shadow-sm flex justify-between items-center animate-fade-in">
-                    <div>
-                        <p class="font-bold text-gray-800">${n.name}</p>
-                        ${n.barcode ? `<p class="text-xs text-gray-400">Mã: ${n.barcode}</p>` : ''}
+        function renderPendingOrders() {
+            const list = document.getElementById('pending-orders-list');
+            if(pendingOrdersDb.length === 0) {
+                list.innerHTML = '<p class="text-xs text-gray-400 italic py-2">Không có đơn hàng nào đang chờ...</p>';
+                return;
+            }
+            list.innerHTML = pendingOrdersDb.map(po => `
+                <div class="min-w-[140px] bg-white border-2 ${activeImportOrderId === po.id ? 'border-blue-500 shadow-md' : 'border-gray-200'} rounded-xl p-3 flex flex-col gap-1 relative transition-all">
+                    <button onclick="deletePendingOrder('${po.id}')" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 text-sm"><i class="fa-solid fa-trash"></i></button>
+                    <div onclick="loadOrderToImport('${po.id}')" class="cursor-pointer pr-5">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase"><i class="fa-regular fa-calendar"></i> ${new Date(po.created_at).toLocaleDateString('vi-VN')}</p>
+                        <p class="font-bold text-sm text-gray-800 mt-1">${po.items.length} mặt hàng</p>
                     </div>
-                    <button onclick="deleteDoc(docPath('needs', '${n.id}'))" class="text-red-400 hover:text-red-600 p-2"><i class="fa-solid fa-trash"></i></button>
                 </div>
             `).join('');
+
+            // Clean state if selected order was deleted by another staff member
+            if(activeImportOrderId && !pendingOrdersDb.find(o => o.id === activeImportOrderId)) {
+                activeImportOrderId = null;
+                pendingImports = [];
+                renderImportList();
+            }
         }
 
-        // Tab Nhập hàng
-        window.pullFromNeeds = async () => {
-            if(needs.length === 0) return showToast('Dự trù trống!');
-            pendingImports = [...needs.map(n => ({ id: uuid(), name: n.name, barcode: n.barcode, qty: '', exp: '', in_price: '', sell_price: '' }))];
-            renderImportList();
-            switchTab('nhaphang', 'Nhập Kho');
+        window.loadOrderToImport = (orderId) => {
+            const order = pendingOrdersDb.find(o => o.id === orderId);
+            if(!order) return;
+            activeImportOrderId = orderId;
+            document.getElementById('import-form-title').innerText = `Chi tiết phiếu chờ (Ngày ${new Date(order.created_at).toLocaleDateString('vi-VN')})`;
             
-            // Xóa dự trù cũ
-            for(let n of needs) await deleteDoc(docPath('needs', n.id));
+            pendingImports = order.items.map(item => ({
+                id: uuid(),
+                name: item.name,
+                barcode: item.barcode || '',
+                qty: '',
+                exp: '',
+                in_price: '',
+                sell_price: ''
+            }));
+            renderPendingOrders(); // Refresh viền xanh
+            renderImportList();
         }
 
         window.addBlankImportRow = () => {
+            activeImportOrderId = null; // Hủy chọn phiếu chờ nếu đang chọn
+            document.getElementById('import-form-title').innerText = "Chi tiết phiếu nhập (Nhập lẻ)";
+            renderPendingOrders();
             pendingImports.unshift({ id: uuid(), name: '', barcode: '', qty: '', exp: '', in_price: '', sell_price: '' });
             renderImportList();
         }
@@ -1031,7 +1148,15 @@
 
         function renderImportList() {
             const list = document.getElementById('import-list');
-            if(pendingImports.length === 0) return list.innerHTML = `<div class="text-center text-gray-400 mt-10"><p>Chưa có danh sách.</p><button onclick="addBlankImportRow()" class="mt-3 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-bold">+ Thêm dòng mới</button></div>`;
+            const btnSave = document.getElementById('btn-save-imports');
+
+            if(pendingImports.length === 0) {
+                btnSave.classList.add('hidden');
+                list.innerHTML = `<div class="text-center text-gray-400 mt-10"><p>Chọn một đơn chờ phía trên hoặc tạo dòng nhập lẻ mới.</p></div>`;
+                return;
+            }
+            
+            btnSave.classList.remove('hidden');
             
             list.innerHTML = pendingImports.map((item, idx) => {
                 // Thử lấy giá cũ
@@ -1061,7 +1186,14 @@
         window.saveImportsToInventory = async () => {
             if(!userId || pendingImports.length === 0) return;
             let count = 0;
+            let historyItems = [];
             
+            // Validate sơ bộ
+            for(let i=0; i<pendingImports.length; i++) {
+                const name = document.getElementById(`imp-name-${i}`).value.trim();
+                if(!name) return showToast('Có dòng đang bỏ trống Tên sản phẩm!', 'bg-red-500');
+            }
+
             for(let i=0; i<pendingImports.length; i++) {
                 const name = document.getElementById(`imp-name-${i}`).value.trim();
                 const barcode = document.getElementById(`imp-code-${i}`).value.trim();
@@ -1089,14 +1221,38 @@
                         data.stock = qty;
                         await addDoc(colPath('products'), data);
                     }
+                    // Ghi nhận vào mảng lịch sử nhập
+                    historyItems.push({ name, barcode, qty, expiry_date: exp, import_price: inPrc });
                     count++;
                 } catch(e) { console.error(e); }
             }
 
             if(count > 0) {
-                showToast(`Đã nhập thành công ${count} lô hàng!`, 'bg-green-500');
-                pendingImports = []; renderImportList();
-            } else showToast('Vui lòng điền Tên & Số lượng!', 'bg-red-500');
+                // Lưu bản ghi lịch sử nhập hàng
+                if (historyItems.length > 0) {
+                    try {
+                        await addDoc(colPath('import_history'), {
+                            created_at: Date.now(),
+                            items: historyItems
+                        });
+                    } catch(e) { console.error('Lỗi lưu lịch sử', e); }
+                }
+
+                // Nếu nhập hàng từ 1 Phiếu chờ, xóa phiếu chờ đó đi
+                if(activeImportOrderId) {
+                    try {
+                        await deleteDoc(docPath('pending_orders', activeImportOrderId));
+                    } catch(e) { console.error(e); }
+                    activeImportOrderId = null;
+                    document.getElementById('import-form-title').innerText = "Chi tiết phiếu nhập";
+                }
+
+                showToast(`Đã lưu kho thành công ${count} lô hàng!`, 'bg-green-500');
+                pendingImports = []; 
+                renderImportList();
+            } else {
+                showToast('Vui lòng điền đủ Số Lượng > 0!', 'bg-red-500');
+            }
         }
 
         function renderCustomersList() {
@@ -1152,21 +1308,57 @@
             `).join('');
         }
 
+        function renderAdminImports() {
+            const list = document.getElementById('admin-imports-list');
+            list.innerHTML = importHistoryDb.slice(0, 50).map(o => `
+                <div class="bg-gray-50 p-3 rounded-lg border text-sm">
+                    <div class="flex justify-between font-bold text-gray-700 border-b pb-1 mb-1">
+                        <span><i class="fa-regular fa-calendar"></i> ${new Date(o.created_at).toLocaleString('vi-VN')}</span>
+                        <span class="text-green-600">${o.items.length} mã hàng</span>
+                    </div>
+                    <ul class="text-xs text-gray-500 list-disc pl-4 space-y-1 mt-2">
+                        ${o.items.map(i => `<li><b>${i.name}</b>: +${i.qty} (HSD: ${i.expiry_date})</li>`).join('')}
+                    </ul>
+                </div>
+            `).join('');
+        }
+
+        // --- CẢI TIẾN HỆ THỐNG CAMERA QUÉT MÃ ---
         window.startScanner = function(context) {
             scanContext = context;
+            // 1. Hiển thị UI ngay lập tức
             document.getElementById('scanner-modal').classList.remove('hidden');
-            html5QrcodeScanner = new Html5Qrcode("reader");
+            
+            // 2. Chỉ khởi tạo object 1 lần để tiết kiệm bộ nhớ
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+
             const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
 
-            html5QrcodeScanner.start({ facingMode: "environment" }, config, (decodedText) => {
+            // 3. Khởi động camera môi trường (mặt sau)
+            html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+                // Khi quét thành công
                 stopScanner();
                 handleScanResult(decodedText);
-            }).catch(err => { showToast("Lỗi mở camera!", "bg-red-500"); stopScanner(); });
+            }).catch(err => {
+                console.warn("Lỗi khởi động camera (có thể do chưa cấp quyền):", err);
+                // Không báo lỗi đỏ chót để tránh làm phiền UX nếu máy cấu hình yếu load chậm
+            });
         }
 
         window.stopScanner = () => {
-            if (html5QrcodeScanner) html5QrcodeScanner.stop().then(() => html5QrcodeScanner.clear());
+            // 1. NGAY LẬP TỨC ẨN GIAO DIỆN (Tạo cảm giác mượt mà không bị đơ)
             document.getElementById('scanner-modal').classList.add('hidden');
+            
+            // 2. Tắt phần cứng ngầm phía sau (Nhiều máy iOS cần xử lý logic này)
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    // Tắt thành công
+                }).catch((err) => {
+                    console.warn("Lỗi khi tắt camera:", err);
+                });
+            }
         }
 
         function handleScanResult(code) {
