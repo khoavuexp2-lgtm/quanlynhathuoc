@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hệ Thống Quản Lý Thông Minh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+    <!-- Thư viện tạo Barcode cho hóa đơn -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        #reader { width: 100%; border-radius: 8px; overflow: hidden; }
+        #reader video { object-fit: cover; }
+        
+        /* Ẩn thanh cuộn nhưng vẫn cuộn được */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #print-section, #print-section * { visibility: visible; }
+            #print-section { position: absolute; left: 0; top: 0; width: 100%; }
+            @page { margin: 0; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[200] hidden px-5 py-3 rounded-full shadow-2xl text-white font-bold transition-all flex items-center gap-2"></div>
+
+    <div id="login-screen" class="fixed inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 z-[100] flex flex-col items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm">
+            <div class="text-center mb-8">
+                <div class="bg-indigo-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600">
+                    <i class="fa-solid fa-pills text-4xl"></i>
+                </div>
+                <h1 class="text-3xl font-extrabold text-gray-800">ProPOS</h1>
+                <p class="text-sm text-gray-500 mt-2">Hệ thống quản lý bán hàng</p>
+            </div>
+            
+            <form id="login-form" class="space-y-5">
+                <div>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-4 top-3.5 text-gray-400"></i>
+                        <input type="text" id="login-id" required class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="Tên đăng nhập">
+                    </div>
+                </div>
+                <div>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-4 top-3.5 text-gray-400"></i>
+                        <input type="password" id="login-pass" required class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="Mật khẩu">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all mt-6">
+                    Mở Hệ Thống
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden h-full flex flex-col w-full bg-gray-100">
+        <!-- HEADER -->
+        <header class="bg-white text-gray-800 p-4 shadow-sm flex justify-between items-center z-10 sticky top-0">
+            <h1 class="text-xl font-extrabold text-indigo-600" id="header-title">Bán Hàng</h1>
+            <div class="flex gap-3">
+                <button onclick="switchTab('admin', 'Admin & Cài Đặt')" class="text-gray-500 hover:text-indigo-600 p-2 rounded-full bg-gray-50"><i class="fa-solid fa-gear text-lg"></i></button>
+                <button onclick="logout()" class="text-red-500 hover:text-red-600 p-2 rounded-full bg-red-50"><i class="fa-solid fa-power-off text-lg"></i></button>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT (TABS) -->
+        <main class="flex-1 overflow-y-auto pb-24 p-2 md:p-4 relative no-scrollbar">
+            
+            <div id="tab-cannhap" class="tab-content h-full flex flex-col">
+                <div class="bg-white p-4 rounded-2xl shadow-sm mb-4">
+                    <h2 class="font-bold text-gray-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-clipboard-list text-indigo-500"></i> Thêm hàng cần nhập</h2>
+                    <div class="flex gap-2">
+                        <input type="text" id="cn-input" placeholder="Nhập tên hoặc quét mã vạch..." class="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <button onclick="startScanner('cannhap')" class="bg-gray-800 text-white px-4 rounded-xl shadow"><i class="fa-solid fa-barcode"></i></button>
+                        <button onclick="addShoppingList()" class="bg-indigo-600 text-white px-4 rounded-xl shadow font-bold">Thêm</button>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto space-y-3 mb-4" id="shopping-list-render">
+                    <!-- Render items here -->
+                </div>
+
+                <button onclick="transferToImport()" class="w-full bg-green-500 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-green-600 sticky bottom-0 z-10 flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-truck-fast"></i> Chốt danh sách & Chuyển qua Nhập Hàng
+                </button>
+
+                <!-- Lịch sử đơn cần nhập -->
+                <div class="mt-8">
+                    <h3 class="font-bold text-gray-600 mb-3 border-b pb-2">Lịch sử đơn đã nhập</h3>
+                    <div id="shopping-history-render" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <div id="tab-nhaphang" class="tab-content h-full flex flex-col">
+                <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-xl mb-4 text-sm text-yellow-700">
+                    <i class="fa-solid fa-lightbulb"></i> Mẹo: Nhập HSD theo dạng <b>ddmmyy</b> (VD: 150825), app sẽ tự động đổi thành 15/08/2025.
+                </div>
+                
+                <div class="flex justify-between items-center mb-3 px-1">
+                    <h3 class="font-bold text-gray-700">Danh sách hàng đang nhập</h3>
+                    <button onclick="addNewBlankImport()" class="text-indigo-600 text-sm font-bold bg-indigo-50 px-3 py-1 rounded-lg">+ Thêm dòng mới</button>
+                </div>
+
+                <div id="import-list-render" class="flex-1 overflow-y-auto space-y-4 pb-20">
+                    <!-- Render form nhập kho -->
+                </div>
+
+                <button onclick="saveImportToInventory()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-indigo-700 fixed bottom-20 left-0 right-0 mx-4 md:mx-auto md:max-w-md z-10 flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-box-archive"></i> Lưu vào kho hàng
+                </button>
+            </div>
+
+            <div id="tab-banhang" class="tab-content active h-full flex flex-col relative">
+                <!-- Chọn Khách Hàng -->
+                <div class="bg-white p-3 rounded-2xl shadow-sm mb-3 border border-indigo-100 relative">
+                    <div class="flex gap-2 items-center">
+                        <i class="fa-solid fa-users text-indigo-400"></i>
+                        <input type="text" id="pos-customer" placeholder="Tên hoặc SĐT Khách hàng..." class="flex-1 p-2 bg-transparent outline-none text-gray-800 font-semibold" autocomplete="off">
+                        <button onclick="startScanner('customer')" class="text-gray-400 hover:text-indigo-600"><i class="fa-solid fa-qrcode text-xl"></i></button>
+                    </div>
+                    <!-- Gợi ý khách hàng -->
+                    <div id="customer-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white border rounded-xl shadow-xl z-20 hidden max-h-40 overflow-y-auto"></div>
+                    <div id="customer-info" class="hidden mt-2 p-2 bg-indigo-50 rounded-lg text-sm flex justify-between items-center border border-indigo-100">
+                        <div>
+                            <span class="font-bold text-indigo-800" id="c-name"></span>
+                            <span class="text-xs text-indigo-500 block" id="c-phone"></span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-gray-500">Điểm hiện tại</span>
+                            <br><span class="font-bold text-green-600" id="c-points">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ô nhập liệu liên tục -->
+                <div class="flex gap-2 mb-3 sticky top-0 z-10 bg-gray-100 pb-2">
+                    <input type="text" id="pos-search" placeholder="Quét mã vạch hoặc gõ tên SP..." class="flex-1 p-3 bg-white border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none text-lg">
+                    <button onclick="startScanner('banhang')" class="bg-indigo-600 text-white px-4 rounded-xl shadow"><i class="fa-solid fa-barcode text-xl"></i></button>
+                </div>
+                <div id="pos-suggestions" class="bg-white rounded-xl shadow-xl border mb-2 hidden max-h-48 overflow-y-auto absolute w-full z-20 top-[130px]"></div>
+                
+                <!-- Giỏ hàng -->
+                <div id="cart-list" class="flex-1 overflow-y-auto space-y-3 pb-4">
+                    <div class="h-full flex flex-col items-center justify-center text-gray-400">
+                        <i class="fa-solid fa-cart-arrow-down text-4xl mb-2 opacity-50"></i>
+                        <p>Chưa có sản phẩm</p>
+                    </div>
+                </div>
+
+                <!-- Thanh toán -->
+                <div class="bg-white p-4 rounded-t-3xl shadow-[0_-10px_20px_rgba(0,0,0,0.05)] border-t mt-auto -mx-2 -mb-2 md:mx-0 md:mb-0 md:rounded-2xl">
+                    
+                    <!-- Tính năng Trừ điểm lẻ -->
+                    <div class="flex justify-between items-center mb-3 pb-3 border-b" id="discount-section" style="display:none;">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="use-points-cb" class="w-5 h-5 text-indigo-600 rounded" onchange="calculatePosTotal()">
+                            <span class="text-sm font-bold text-gray-700">Dùng điểm trừ số lẻ:</span>
+                        </label>
+                        <span class="font-bold text-green-500" id="discount-amount">0 đ</span>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-gray-500 font-semibold">Khách cần trả:</span>
+                        <span class="font-bold text-2xl text-red-500" id="cart-total">0 đ</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 mb-4 bg-gray-50 p-2 rounded-xl">
+                        <span class="text-sm text-gray-500 whitespace-nowrap">Khách đưa (x1000đ):</span>
+                        <input type="number" id="customer-given" class="flex-1 bg-transparent text-right font-bold text-lg outline-none" placeholder="VD: 100" oninput="calculatePosTotal()">
+                    </div>
+                    
+                    <div class="flex justify-between items-center mb-4 text-sm hidden" id="change-section">
+                        <span class="text-gray-500">Tiền thừa:</span>
+                        <span class="font-bold text-blue-600" id="customer-change">0 đ</span>
+                    </div>
+
+                    <button onclick="processCheckout()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 text-lg uppercase tracking-wider">
+                        Thanh Toán
+                    </button>
+                </div>
+            </div>
+
+            <div id="tab-tonkho" class="tab-content h-full flex flex-col">
+                <!-- Thống kê -->
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 text-white shadow-lg">
+                        <p class="text-blue-100 text-xs font-semibold mb-1">TỔNG SỐ LƯỢNG MẶT HÀNG</p>
+                        <p class="text-2xl font-bold" id="stat-total-items">0</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-4 text-white shadow-lg">
+                        <p class="text-green-100 text-xs font-semibold mb-1">ƯỚC TÍNH VỐN TỒN</p>
+                        <p class="text-xl font-bold" id="stat-total-money">0 đ</p>
+                    </div>
+                </div>
+
+                <!-- Lọc -->
+                <div class="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
+                    <button onclick="filterInventory('all')" class="inv-filter active whitespace-nowrap px-4 py-2 bg-indigo-600 text-white rounded-full text-sm shadow">Tất cả</button>
+                    <button onclick="filterInventory('low')" class="inv-filter whitespace-nowrap px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-full text-sm shadow-sm hover:bg-red-50">Sắp hết hàng</button>
+                    <button onclick="filterInventory('date')" class="inv-filter whitespace-nowrap px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-full text-sm shadow-sm hover:bg-yellow-50">Cận date</button>
+                </div>
+                
+                <input type="text" id="filter-text" placeholder="Tìm kiếm trong kho..." class="w-full p-3 bg-white border border-gray-200 rounded-xl shadow-sm mb-3">
+
+                <div id="inventory-list" class="space-y-3 pb-10 flex-1 overflow-y-auto"></div>
+            </div>
+
+            <div id="tab-admin" class="tab-content h-full">
+                <h2 class="text-xl font-bold mb-4 text-gray-800">Cài đặt hệ thống</h2>
+                
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                    <h3 class="font-bold text-indigo-600 mb-4 border-b pb-2"><i class="fa-solid fa-gift"></i> Quy tắc Tích Điểm</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Bao nhiêu tiền = 1 Điểm?</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="setting-money-per-point" class="flex-1 p-2 border rounded-xl bg-gray-50">
+                                <span class="text-gray-500 font-bold">VNĐ</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">1 Điểm quy ra bao nhiêu tiền khi giảm?</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="setting-point-value" class="flex-1 p-2 border rounded-xl bg-gray-50">
+                                <span class="text-gray-500 font-bold">VNĐ</span>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">* Hệ thống tự động thiết lập trừ phần tiền lẻ (vd hóa đơn 103k, dùng điểm để trừ 3k).</p>
+                        </div>
+                        <button onclick="saveAdminSettings()" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-xl shadow hover:bg-indigo-700 w-full">Lưu cài đặt</button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-indigo-600 mb-4 border-b pb-2"><i class="fa-solid fa-users-gear"></i> Quản lý Khách Hàng</h3>
+                    <div id="admin-customers" class="space-y-2 max-h-60 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- MODAL QUÉT MÃ -->
+            <div id="scanner-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col hidden backdrop-blur-sm">
+                <div class="flex justify-between items-center p-5 text-white">
+                    <h3 class="font-bold text-lg">Đưa mã vạch vào khung</h3>
+                    <button onclick="stopScanner()" class="bg-red-500/20 text-red-400 px-4 py-2 rounded-full font-bold hover:bg-red-500/40">Đóng</button>
+                </div>
+                <div class="flex-1 flex items-center justify-center p-4">
+                    <div id="reader" class="bg-black w-full max-w-md rounded-3xl overflow-hidden border-4 border-indigo-500/30"></div>
+                </div>
+            </div>
+
+        </main>
+
+        <nav class="fixed bottom-0 w-full bg-white border-t border-gray-100 flex justify-around p-2 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-40">
+            <button onclick="switchTab('banhang', 'Bán Hàng')" class="nav-btn text-indigo-600 flex flex-col items-center w-1/4 py-1 transition-colors" data-tab="banhang">
+                <i class="fa-solid fa-calculator text-xl mb-1"></i>
+                <span class="text-[10px] font-bold">Bán Hàng</span>
+            </button>
+            <button onclick="switchTab('nhaphang', 'Nhập Kho')" class="nav-btn text-gray-400 flex flex-col items-center w-1/4 py-1 transition-colors" data-tab="nhaphang">
+                <i class="fa-solid fa-box-open text-xl mb-1"></i>
+                <span class="text-[10px] font-bold">Nhập Kho</span>
+            </button>
+            <button onclick="switchTab('tonkho', 'Tồn Kho')" class="nav-btn text-gray-400 flex flex-col items-center w-1/4 py-1 transition-colors" data-tab="tonkho">
+                <i class="fa-solid fa-boxes-stacked text-xl mb-1"></i>
+                <span class="text-[10px] font-bold">Tồn Kho</span>
+            </button>
+            <button onclick="switchTab('cannhap', 'Cần Nhập')" class="nav-btn text-gray-400 flex flex-col items-center w-1/4 py-1 transition-colors relative" data-tab="cannhap">
+                <i class="fa-solid fa-list-check text-xl mb-1"></i>
+                <span class="text-[10px] font-bold">Cần Nhập</span>
+                <span id="badge-need-buy" class="absolute top-0 right-3 bg-red-500 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center hidden">0</span>
+            </button>
+        </nav>
+    </div>
+
+    <div id="print-section" class="hidden bg-white p-4 text-black text-sm font-mono w-full max-w-[80mm] mx-auto">
+        <div class="text-center mb-4">
+            <h2 class="font-bold text-lg">NHÀ THUỐC LAN ANH</h2>
+            <p>Hóa Đơn Bán Hàng</p>
+            <p id="print-date"></p>
+        </div>
+        <div class="border-b border-dashed border-gray-400 mb-2 pb-2" id="print-customer-info" style="display:none;">
+            <p>KH: <span id="print-c-name"></span></p>
+            <svg id="print-barcode" class="w-full h-12 mt-1"></svg>
+        </div>
+        <table class="w-full mb-2">
+            <thead>
+                <tr class="border-b border-dashed border-gray-400">
+                    <th class="text-left py-1">SP</th>
+                    <th class="text-center py-1">SL</th>
+                    <th class="text-right py-1">T.Tiền</th>
+                </tr>
+            </thead>
+            <tbody id="print-items"></tbody>
+        </table>
+        <div class="border-t border-dashed border-gray-400 pt-2 text-right">
+            <p>Tổng cộng: <strong id="print-total">0</strong></p>
+            <p id="print-discount-row" style="display:none;">Trừ điểm: <span id="print-discount">0</span></p>
+            <p class="text-lg mt-1">CẦN TT: <strong id="print-final">0</strong></p>
+        </div>
+        <div class="text-center mt-6 text-xs text-gray-500">
+            Cảm ơn quý khách!
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, updateDoc, doc, setDoc, deleteDoc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // CẤU HÌNH FIREBASE
+        let firebaseConfig = {
+            apiKey: "AIzaSyA3BTAfXaLg2GeXgyxewlW4uIU69ngc_Is",
+            authDomain: "quanly-nhathuoc.firebaseapp.com",
+            projectId: "quanly-nhathuoc",
+            storageBucket: "quanly-nhathuoc.firebasestorage.app",
+            messagingSenderId: "989382797162",
+            appId: "1:989382797162:web:b1333c7db7e1ba84916713"
+        };
+        
+        try { if(typeof __firebase_config !== 'undefined') firebaseConfig = JSON.parse(__firebase_config); } catch(e){}
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // GLOBAL STATE
+        let products = [];
+        let shoppingList = [];
+        let purchaseOrders = [];
+        let customers = [];
+        let settings = { money_per_point: 10000, point_value: 1000 };
+        
+        let posCart = [];
+        let currentCustomer = null;
+        let pendingImportList = [];
+
+        let fuseProducts = null;
+        let fuseCustomers = null;
+        let html5QrcodeScanner = null;
+        let currentScanContext = ''; 
+        let userId = 'demo-pharmacy'; // Dùng chung 1 ID cho nội bộ
+
+        // --- AUTH & KHỞI TẠO ---
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            if(document.getElementById('login-id').value === 'thuoctaylananh' && document.getElementById('login-pass').value === 'lananh123@') {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                loginToFirebase();
+            } else showToast('Sai mật khẩu!', 'bg-red-500');
+        });
+
+        if (sessionStorage.getItem('isLoggedIn') === 'true') loginToFirebase();
+
+        window.logout = function() {
+            sessionStorage.removeItem('isLoggedIn');
+            window.location.reload();
+        }
+
+        function loginToFirebase() {
+            signInAnonymously(auth).then((userCred) => {
+                // Để app đồng bộ dữ liệu nội bộ chung cho cả nhà thuốc, ta fix cứng 1 collection path
+                // Thay vì userCred.user.uid, ta dùng 'pharmacy-main'
+                userId = 'pharmacy-main'; 
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+                initListeners();
+            }).catch(e => showToast('Lỗi kết nối Firebase', 'bg-red-500'));
+        }
+
+        // --- DATABASE LISTENERS ---
+        function initListeners() {
+            // Products
+            onSnapshot(collection(db, `apps/${userId}/products`), (snap) => {
+                products = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                fuseProducts = new Fuse(products, { keys: ['name', 'barcode'], threshold: 0.3 });
+                renderInventory('all');
+                calculateStats();
+            });
+
+            // Shopping List (Cần nhập)
+            onSnapshot(collection(db, `apps/${userId}/shopping_list`), (snap) => {
+                shoppingList = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                renderShoppingList();
+            });
+
+            // Lịch sử đơn nhập
+            onSnapshot(collection(db, `apps/${userId}/purchase_orders`), (snap) => {
+                purchaseOrders = snap.docs.map(doc => ({id: doc.id, ...doc.data()})).sort((a,b)=>b.date-a.date);
+                renderPurchaseHistory();
+            });
+
+            // Khách hàng
+            onSnapshot(collection(db, `apps/${userId}/customers`), (snap) => {
+                customers = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                fuseCustomers = new Fuse(customers, { keys: ['name', 'phone', 'barcode'], threshold: 0.3 });
+                renderAdminCustomers();
+            });
+
+            // Cài đặt
+            onSnapshot(doc(db, `apps/${userId}/config`, 'settings'), (docSnap) => {
+                if (docSnap.exists()) {
+                    settings = docSnap.data();
+                    document.getElementById('setting-money-per-point').value = settings.money_per_point;
+                    document.getElementById('setting-point-value').value = settings.point_value;
+                }
+            });
+        }
+
+        // ==========================================
+        // UI & UTILITIES
+        // ==========================================
+        window.formatMoney = (amt) => new Intl.NumberFormat('vi-VN').format(amt || 0) + ' đ';
+        window.generateId = () => Math.random().toString(36).substr(2, 9);
+        
+        window.showToast = function(msg, colorClass = 'bg-gray-800') {
+            const toast = document.getElementById('toast');
+            toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-[200] px-5 py-3 rounded-full shadow-2xl text-white text-sm font-bold transition-all flex items-center gap-2 ${colorClass}`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${msg}`;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 2500);
+        }
+
+        window.switchTab = function(tabId, title) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-indigo-600');
+                btn.classList.add('text-gray-400');
+            });
+            const activeBtn = document.querySelector(`.nav-btn[data-tab="${tabId}"]`);
+            if(activeBtn) {
+                activeBtn.classList.add('text-indigo-600');
+                activeBtn.classList.remove('text-gray-400');
+            }
+            document.getElementById('header-title').innerText = title;
+
+            if(tabId === 'banhang') setTimeout(() => document.getElementById('pos-search').focus(), 100);
+        }
+
+        // Tự động format ddmmyy -> dd/mm/yyyy
+        function setupDateFormatter(inputEl) {
+            inputEl.addEventListener('input', function(e) {
+                let v = e.target.value.replace(/\D/g, '');
+                if (v.length > 6) v = v.substring(0, 6);
+                if (v.length === 6) {
+                    e.target.value = v.substring(0,2) + '/' + v.substring(2,4) + '/20' + v.substring(4,6);
+                }
+            });
+        }
+
+        // ==========================================
+        // TAB 1: CẦN NHẬP (SHOPPING LIST)
+        // ==========================================
+        window.addShoppingList = async function(itemName = null) {
+            const inputName = itemName || document.getElementById('cn-input').value.trim();
+            if (!inputName) return;
+            
+            // Tìm thử xem có trong kho chưa
+            let prodId = null;
+            let pName = inputName;
+            
+            if(fuseProducts) {
+                const res = fuseProducts.search(inputName);
+                if(res.length > 0 && res[0].score < 0.2) { // Tìm thấy chính xác
+                    prodId = res[0].item.id;
+                    pName = res[0].item.name;
+                }
+            }
+
+            try {
+                await addDoc(collection(db, `apps/${userId}/shopping_list`), {
+                    name: pName,
+                    product_id: prodId,
+                    created_at: Date.now()
+                });
+                document.getElementById('cn-input').value = '';
+                showToast('Đã thêm vào danh sách mua', 'bg-indigo-500');
+            } catch(e) { console.error(e); }
+        }
+
+        function renderShoppingList() {
+            const list = document.getElementById('shopping-list-render');
+            const badge = document.getElementById('badge-need-buy');
+            
+            if(shoppingList.length > 0) {
+                badge.innerText = shoppingList.length;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            list.innerHTML = shoppingList.map(item => `
+                <div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center animate-fade-in">
+                    <div>
+                        <p class="font-bold text-gray-800">${item.name}</p>
+                        ${item.product_id ? '<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-md">Đã có trong kho</span>' : '<span class="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md">SP Mới</span>'}
+                    </div>
+                    <button onclick="deleteShoppingItem('${item.id}')" class="text-red-400 hover:text-red-600 p-2"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `).join('');
+        }
+
+        window.deleteShoppingItem = async function(id) {
+            await deleteDoc(doc(db, `apps/${userId}/shopping_list`, id));
+        }
+
+        // Chuyển hàng cần nhập -> Lưu Lịch Sử -> Qua form Nhập Hàng
+        window.transferToImport = async function() {
+            if(shoppingList.length === 0) return showToast('Danh sách trống!');
+            
+            pendingImportList = [...shoppingList]; // Copy qua biến tạm
+            
+            // Lưu thành 1 đơn nhập lịch sử
+            const orderData = {
+                date: Date.now(),
+                items: pendingImportList.map(i => i.name)
+            };
+            await addDoc(collection(db, `apps/${userId}/purchase_orders`), orderData);
+
+            // Xóa sạch shopping list
+            for(let item of shoppingList) {
+                await deleteDoc(doc(db, `apps/${userId}/shopping_list`, item.id));
+            }
+
+            switchTab('nhaphang', 'Nhập Kho');
+            renderImportForm();
+        }
+
+        function renderPurchaseHistory() {
+            const list = document.getElementById('shopping-history-render');
+            list.innerHTML = purchaseOrders.map(o => `
+                <div class="bg-gray-50 p-3 rounded-lg border text-sm flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-gray-700">${new Date(o.date).toLocaleDateString('vi-VN')} ${new Date(o.date).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})}</p>
+                        <p class="text-xs text-gray-500 truncate w-48">${o.items.join(', ')}</p>
+                    </div>
+                    <button onclick="deletePurchaseOrder('${o.id}')" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
+                </div>
+            `).join('');
+        }
+        window.deletePurchaseOrder = async (id) => await deleteDoc(doc(db, `apps/${userId}/purchase_orders`, id));
+
+        // ==========================================
+        // TAB 2: NHẬP HÀNG KHO
+        // ==========================================
+        window.addNewBlankImport = function() {
+            pendingImportList.unshift({ id: generateId(), name: '', product_id: null, isNew: true });
+            renderImportForm();
+        }
+
+        window.removeImportRow = function(id) {
+            pendingImportList = pendingImportList.filter(i => i.id !== id);
+            renderImportForm();
+        }
+
+        function renderImportForm() {
+            const list = document.getElementById('import-list-render');
+            if(pendingImportList.length === 0) {
+                list.innerHTML = `<div class="text-center text-gray-400 mt-10">Không có hàng đang chờ nhập.<br>Vui lòng thêm từ tab Cần Nhập.</div>`;
+                return;
+            }
+
+            list.innerHTML = pendingImportList.map((item, index) => {
+                // Thử lấy giá cũ nếu có
+                let oldImp = '', oldSell = '';
+                if(item.product_id) {
+                    const p = products.find(x => x.id === item.product_id);
+                    if(p) { oldImp = p.import_price; oldSell = p.sell_price; }
+                }
+
+                return `
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-indigo-100 relative pt-6" id="imp-row-${index}">
+                    <button onclick="removeImportRow('${item.id}')" class="absolute top-2 right-2 text-gray-300 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+                    <div class="space-y-2">
+                        <input type="text" id="imp-name-${index}" value="${item.name}" placeholder="Tên sản phẩm" class="w-full p-2 border-b font-bold text-indigo-800 outline-none focus:border-indigo-500 bg-transparent">
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="text-[10px] text-gray-500">Mã vạch</label>
+                            <input type="text" id="imp-code-${index}" placeholder="Quét/Nhập" class="w-full p-2 bg-gray-50 rounded-lg text-sm outline-none"></div>
+                            
+                            <div><label class="text-[10px] text-gray-500">HSD (ddmmyy)</label>
+                            <input type="text" id="imp-exp-${index}" placeholder="150825" class="w-full p-2 bg-gray-50 rounded-lg text-sm outline-none date-auto-format"></div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2">
+                            <div><label class="text-[10px] text-gray-500">Số lượng</label>
+                            <input type="number" id="imp-qty-${index}" class="w-full p-2 bg-indigo-50 border border-indigo-100 rounded-lg font-bold text-center outline-none"></div>
+                            
+                            <div><label class="text-[10px] text-gray-500">Giá Nhập</label>
+                            <input type="number" id="imp-prc-${index}" value="${oldImp}" class="w-full p-2 bg-gray-50 rounded-lg text-sm outline-none"></div>
+                            
+                            <div><label class="text-[10px] text-gray-500">Giá Bán</label>
+                            <input type="number" id="imp-sell-${index}" value="${oldSell}" class="w-full p-2 bg-gray-50 rounded-lg text-sm outline-none text-red-600 font-bold"></div>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+
+            // Gắn event tự format ngày
+            document.querySelectorAll('.date-auto-format').forEach(setupDateFormatter);
+        }
+
+        window.saveImportToInventory = async function() {
+            if(pendingImportList.length === 0) return;
+            
+            let count = 0;
+            for(let i=0; i<pendingImportList.length; i++) {
+                const item = pendingImportList[i];
+                const name = document.getElementById(`imp-name-${i}`).value.trim();
+                const barcode = document.getElementById(`imp-code-${i}`).value.trim();
+                const expiry = document.getElementById(`imp-exp-${i}`).value.trim();
+                const qty = Number(document.getElementById(`imp-qty-${i}`).value) || 0;
+                const importPrice = Number(document.getElementById(`imp-prc-${i}`).value) || 0;
+                const sellPrice = Number(document.getElementById(`imp-sell-${i}`).value) || 0;
+
+                if(!name || qty <= 0) continue; // Bỏ qua nếu ko có tên hoặc SL <= 0
+
+                const data = {
+                    name, barcode, expiry_date: expiry, 
+                    import_price: importPrice, sell_price: sellPrice,
+                    updated_at: Date.now()
+                };
+
+                try {
+                    // Nếu đã có product_id hoặc barcode trùng -> Update cộng kho
+                    let targetId = item.product_id;
+                    if(!targetId && barcode) {
+                        const exist = products.find(p => p.barcode === barcode);
+                        if(exist) targetId = exist.id;
+                    }
+
+                    if(targetId) {
+                        const existP = products.find(p => p.id === targetId);
+                        data.stock = (existP ? existP.stock : 0) + qty;
+                        await updateDoc(doc(db, `apps/${userId}/products`, targetId), data);
+                    } else {
+                        // Thêm mới
+                        data.stock = qty;
+                        await addDoc(collection(db, `apps/${userId}/products`), data);
+                    }
+                    count++;
+                } catch(e) { console.error("Lỗi lưu:", e); }
+            }
+
+            if(count > 0) {
+                showToast(`Đã nhập thành công ${count} mã hàng!`, 'bg-green-500');
+                pendingImportList = [];
+                renderImportForm();
+            } else {
+                showToast('Vui lòng điền Tên và Số lượng nhập', 'bg-red-500');
+            }
+        }
+
+        // ==========================================
+        // TAB 3: BÁN HÀNG (POS)
+        // ==========================================
+        
+        // Khách hàng Logic
+        document.getElementById('pos-customer').addEventListener('input', (e) => {
+            const v = e.target.value;
+            const sugg = document.getElementById('customer-suggestions');
+            if(!v || !fuseCustomers) { sugg.classList.add('hidden'); return; }
+            
+            const results = fuseCustomers.search(v).slice(0,3);
+            if(results.length === 0) {
+                // Nút tạo mới nhanh
+                sugg.innerHTML = `<div class="p-3 text-indigo-600 font-bold cursor-pointer hover:bg-indigo-50" onclick="createNewCustomer('${v}')">+ Tạo KH mới: ${v}</div>`;
+            } else {
+                sugg.innerHTML = results.map(r => `
+                    <div class="p-3 border-b hover:bg-gray-50 cursor-pointer" onclick="selectCustomer('${r.item.id}')">
+                        <p class="font-bold text-gray-800">${r.item.name}</p>
+                        <p class="text-xs text-gray-500">${r.item.phone || 'Chưa có SĐT'}</p>
+                    </div>
+                `).join('');
+            }
+            sugg.classList.remove('hidden');
+        });
+
+        window.createNewCustomer = async function(nameOrPhone) {
+            let name = nameOrPhone, phone = '';
+            if(!isNaN(nameOrPhone) && nameOrPhone.length >= 9) { phone = nameOrPhone; name = 'Khách mới'; }
+            
+            const newCust = { name, phone, points: 0, barcode: 'KH' + Math.floor(Math.random()*1000000) };
+            try {
+                const docRef = await addDoc(collection(db, `apps/${userId}/customers`), newCust);
+                selectCustomer(docRef.id, { id: docRef.id, ...newCust });
+                document.getElementById('customer-suggestions').classList.add('hidden');
+            } catch(e) { console.error(e); }
+        }
+
+        window.selectCustomer = function(id, custObj = null) {
+            currentCustomer = custObj || customers.find(c => c.id === id);
+            if(currentCustomer) {
+                document.getElementById('pos-customer').value = '';
+                document.getElementById('pos-customer').parentElement.classList.add('hidden');
+                
+                document.getElementById('c-name').innerText = currentCustomer.name;
+                document.getElementById('c-phone').innerText = currentCustomer.phone || currentCustomer.barcode;
+                document.getElementById('c-points').innerText = formatMoney(currentCustomer.points * settings.point_value).replace(' đ','');
+                
+                document.getElementById('customer-info').classList.remove('hidden');
+                document.getElementById('customer-info').innerHTML += `<button onclick="clearCustomer()" class="text-red-400 absolute top-2 right-2"><i class="fa-solid fa-times"></i></button>`;
+                document.getElementById('customer-info').classList.add('relative');
+                
+                document.getElementById('customer-suggestions').classList.add('hidden');
+                calculatePosTotal(); // Tính lại bill để hiện nút trừ điểm
+            }
+        }
+
+        window.clearCustomer = function() {
+            currentCustomer = null;
+            document.getElementById('customer-info').classList.add('hidden');
+            document.getElementById('pos-customer').parentElement.classList.remove('hidden');
+            document.getElementById('use-points-cb').checked = false;
+            calculatePosTotal();
+        }
+
+        // Tìm kiếm sản phẩm POS
+        document.getElementById('pos-search').addEventListener('input', (e) => {
+            const v = e.target.value;
+            const sugg = document.getElementById('pos-suggestions');
+            if(!v || !fuseProducts) { sugg.classList.add('hidden'); return; }
+            
+            const results = fuseProducts.search(v).slice(0, 5);
+            if(results.length === 0) {
+                sugg.innerHTML = `<div class="p-3 text-red-500 font-bold">Không có trong kho. <button class="bg-red-100 px-2 py-1 rounded ml-2 text-sm" onclick="addUnknownProductToCart('${v}')">Thêm tạm</button></div>`;
+            } else {
+                sugg.innerHTML = results.map(r => `
+                    <div class="p-3 border-b hover:bg-gray-50 cursor-pointer flex justify-between items-center" onclick="addToCart('${r.item.id}')">
+                        <div>
+                            <p class="font-bold text-gray-800">${r.item.name}</p>
+                            <p class="text-xs text-gray-500">Tồn: <span class="${r.item.stock<=0?'text-red-500':'text-green-500'} font-bold">${r.item.stock||0}</span> | HSD: ${r.item.expiry_date||'---'}</p>
+                        </div>
+                        <span class="text-indigo-600 font-bold">${formatMoney(r.item.sell_price)}</span>
+                    </div>
+                `).join('');
+            }
+            sugg.classList.remove('hidden');
+        });
+
+        window.addUnknownProductToCart = function(name) {
+            posCart.push({ id: 'temp_'+Date.now(), name: name, sell_price: 0, qty: 1, isUnknown: true });
+            document.getElementById('pos-search').value = '';
+            document.getElementById('pos-suggestions').classList.add('hidden');
+            renderCart();
+        }
+
+        window.addToCart = function(prodId) {
+            const product = products.find(p => p.id === prodId);
+            if(!product) return;
+            const existing = posCart.find(i => i.id === prodId);
+            if(existing) existing.qty++;
+            else posCart.push({ ...product, qty: 1 });
+            
+            document.getElementById('pos-search').value = '';
+            document.getElementById('pos-suggestions').classList.add('hidden');
+            // document.getElementById('pos-search').focus(); // Keep focus for fast scanning
+            renderCart();
+        }
+
+        window.updateCartItem = function(index, field, val) {
+            if(field === 'qty') posCart[index].qty += val;
+            if(field === 'qty_exact') posCart[index].qty = Number(val);
+            if(field === 'price') posCart[index].sell_price = Number(val);
+            
+            if(posCart[index].qty <= 0) posCart.splice(index, 1);
+            renderCart();
+        }
+
+        window.updateProductPrice = async function(prodId, newPrice) {
+            if(prodId.startsWith('temp_')) return;
+            try {
+                await updateDoc(doc(db, `apps/${userId}/products`, prodId), { sell_price: Number(newPrice) });
+                showToast('Đã lưu giá mới vào kho', 'bg-green-500');
+            } catch(e) { console.error(e); }
+        }
+
+        function renderCart() {
+            const list = document.getElementById('cart-list');
+            if(posCart.length === 0) {
+                list.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-gray-400 mt-10"><i class="fa-solid fa-cart-arrow-down text-4xl mb-2 opacity-50"></i><p>Chưa có sản phẩm</p></div>`;
+                calculatePosTotal();
+                return;
+            }
+
+            list.innerHTML = posCart.map((item, index) => `
+                <div class="bg-white p-3 rounded-2xl border shadow-sm border-gray-100 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <p class="font-bold text-gray-800 flex-1 leading-tight">${item.name} ${item.isUnknown ? '<span class="text-[9px] bg-red-100 text-red-500 px-1 rounded ml-1">Chưa có giá</span>' : ''}</p>
+                        <button onclick="updateCartItem(${index}, 'qty_exact', 0)" class="text-gray-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <div class="flex justify-between items-center gap-2">
+                        <!-- Chỉnh sửa giá -->
+                        <div class="flex items-center bg-gray-50 rounded-lg p-1 border">
+                            <input type="number" value="${item.sell_price}" onchange="updateCartItem(${index}, 'price', this.value)" class="w-20 text-right bg-transparent text-sm font-bold text-indigo-600 outline-none">
+                            ${!item.isUnknown ? `<button onclick="updateProductPrice('${item.id}', ${item.sell_price})" class="text-indigo-400 hover:text-indigo-600 px-2 text-xs" title="Cập nhật giá này vào kho"><i class="fa-solid fa-floppy-disk"></i></button>` : ''}
+                        </div>
+                        
+                        <!-- Tăng giảm SL -->
+                        <div class="flex items-center gap-1 bg-gray-100 rounded-lg">
+                            <button onclick="updateCartItem(${index}, 'qty', -1)" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-200">-</button>
+                            <input type="number" value="${item.qty}" onchange="updateCartItem(${index}, 'qty_exact', this.value)" class="w-10 text-center font-bold bg-transparent outline-none">
+                            <button onclick="updateCartItem(${index}, 'qty', 1)" class="w-8 h-8 rounded-lg flex items-center justify-center text-indigo-600 hover:bg-indigo-100">+</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            calculatePosTotal();
+        }
+
+        let currentCartLogic = { total: 0, discount: 0, final: 0, earnedPoints: 0, usedPoints: 0 };
+
+        window.calculatePosTotal = function() {
+            let total = posCart.reduce((sum, item) => sum + (item.qty * item.sell_price), 0);
+            let discount = 0;
+            let usedPoints = 0;
+            let finalAmt = total;
+            let earnedPoints = 0;
+
+            const cbUsePoints = document.getElementById('use-points-cb');
+            const discountSection = document.getElementById('discount-section');
+            
+            // Logic trừ điểm lẻ (Thuật toán 10k)
+            if(currentCustomer && total > 0 && currentCustomer.points > 0) {
+                discountSection.style.display = 'flex';
+                let modulusVal = 10000; // Làm tròn xuống hàng chục ngàn
+                let oddAmount = total % modulusVal;
+                
+                // Nếu không có phần lẻ, hoặc điểm không đủ trừ 1 đồng nào thì ẩn
+                let maxPointsValue = currentCustomer.points * settings.point_value;
+                
+                if (oddAmount > 0 && maxPointsValue > 0) {
+                    let actualDiscount = Math.min(oddAmount, maxPointsValue); // Trừ tối đa phần lẻ, nếu ko đủ thì trừ sạch điểm
+                    if(cbUsePoints.checked) {
+                        discount = actualDiscount;
+                        usedPoints = Math.ceil(actualDiscount / settings.point_value);
+                    }
+                } else {
+                    cbUsePoints.checked = false;
+                    cbUsePoints.disabled = true;
+                }
+            } else {
+                discountSection.style.display = 'none';
+                cbUsePoints.checked = false;
+            }
+
+            finalAmt = total - discount;
+            earnedPoints = Math.floor(finalAmt / settings.money_per_point);
+
+            currentCartLogic = { total, discount, final: finalAmt, earnedPoints, usedPoints };
+
+            document.getElementById('cart-total').innerText = formatMoney(finalAmt);
+            document.getElementById('discount-amount').innerText = '-' + formatMoney(discount);
+
+            // Tiền khách đưa
+            const givenInput = document.getElementById('customer-given').value;
+            const changeSection = document.getElementById('change-section');
+            if(givenInput) {
+                let given = Number(givenInput) * 1000;
+                let change = given - finalAmt;
+                document.getElementById('customer-change').innerText = formatMoney(change);
+                document.getElementById('customer-change').className = change < 0 ? 'font-bold text-red-500' : 'font-bold text-blue-600';
+                changeSection.classList.remove('hidden');
+            } else {
+                changeSection.classList.add('hidden');
+            }
+        }
+
+        window.processCheckout = async function() {
+            if(posCart.length === 0) return showToast('Giỏ hàng trống!', 'bg-yellow-500');
+            
+            // 1. Lưu các mặt hàng chưa biết (isUnknown) vào Cần nhập
+            const unknowns = posCart.filter(i => i.isUnknown);
+            for(let u of unknowns) {
+                await addShoppingList(u.name); // Tự động đẩy qua tab cần nhập
+            }
+
+            // 2. Trừ kho Firebase
+            for(let item of posCart) {
+                if(!item.isUnknown) {
+                    const newStock = Math.max(0, (item.stock || 0) - item.qty);
+                    await updateDoc(doc(db, `apps/${userId}/products`, item.id), { stock: newStock });
+                }
+            }
+
+            // 3. Cập nhật Điểm Khách Hàng
+            if(currentCustomer) {
+                let newPoints = currentCustomer.points - currentCartLogic.usedPoints + currentCartLogic.earnedPoints;
+                await updateDoc(doc(db, `apps/${userId}/customers`, currentCustomer.id), { points: Math.max(0, newPoints) });
+            }
+
+            // 4. Lưu Hóa đơn (Invoices) - optional for future scale.
+            
+            // 5. In Bill
+            printReceipt();
+
+            // 6. Reset
+            posCart = [];
+            document.getElementById('customer-given').value = '';
+            clearCustomer(); // Includes calculatePosTotal & renderCart indirectly
+            renderCart();
+            showToast('Thanh toán thành công!', 'bg-green-500');
+        }
+
+        function printReceipt() {
+            document.getElementById('print-date').innerText = new Date().toLocaleString('vi-VN');
+            
+            if(currentCustomer) {
+                document.getElementById('print-customer-info').style.display = 'block';
+                document.getElementById('print-c-name').innerText = currentCustomer.name;
+                JsBarcode("#print-barcode", currentCustomer.barcode, { format: "CODE128", displayValue: true, height: 30, fontSize: 12, margin: 0 });
+            } else {
+                document.getElementById('print-customer-info').style.display = 'none';
+            }
+
+            document.getElementById('print-items').innerHTML = posCart.map(item => `
+                <tr>
+                    <td class="py-1 border-b border-gray-100 text-xs">${item.name}</td>
+                    <td class="text-center py-1 border-b border-gray-100">${item.qty}</td>
+                    <td class="text-right py-1 border-b border-gray-100">${formatMoney(item.qty * item.sell_price).replace(' đ','')}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('print-total').innerText = formatMoney(currentCartLogic.total);
+            if(currentCartLogic.discount > 0) {
+                document.getElementById('print-discount-row').style.display = 'block';
+                document.getElementById('print-discount').innerText = '-' + formatMoney(currentCartLogic.discount);
+            } else {
+                document.getElementById('print-discount-row').style.display = 'none';
+            }
+            document.getElementById('print-final').innerText = formatMoney(currentCartLogic.final);
+
+            window.print();
+        }
+
+        // ==========================================
+        // TAB 4: TỒN KHO
+        // ==========================================
+        window.filterInventory = function(type) {
+            document.querySelectorAll('.inv-filter').forEach(el => {
+                el.classList.remove('active', 'bg-indigo-600', 'text-white');
+                el.classList.add('bg-white', 'text-gray-600');
+            });
+            event.target.classList.add('active', 'bg-indigo-600', 'text-white');
+            event.target.classList.remove('bg-white', 'text-gray-600');
+            renderInventory(type);
+        }
+
+        function renderInventory(filterType = 'all', searchText = '') {
+            const list = document.getElementById('inventory-list');
+            
+            let filtered = products;
+            if(searchText) {
+                filtered = fuseProducts.search(searchText).map(r => r.item);
+            } else {
+                if(filterType === 'low') filtered = products.filter(p => p.stock <= 5);
+                if(filterType === 'date') {
+                    // Logic tính cận date (sắp hết hạn trong 30 ngày)
+                    const now = new Date();
+                    filtered = products.filter(p => {
+                        if(!p.expiry_date) return false;
+                        const parts = p.expiry_date.split('/');
+                        if(parts.length===3) {
+                            const expDate = new Date(parts[2], parts[1]-1, parts[0]);
+                            const diffTime = Math.abs(expDate - now);
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                            return diffDays <= 60; // Dưới 60 ngày là hiển thị
+                        }
+                        return false;
+                    });
+                }
+            }
+
+            list.innerHTML = filtered.map(p => `
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-gray-800 leading-tight">${p.name}</p>
+                        <p class="text-xs text-gray-500 mt-1">Mã: ${p.barcode||'---'} | HSD: <span class="font-bold text-yellow-600">${p.expiry_date||'---'}</span></p>
+                    </div>
+                    <div class="text-right">
+                        <span class="inline-block px-3 py-1 rounded-lg text-sm font-bold border ${p.stock <= 5 ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-700 border-green-200'}">
+                            ${p.stock||0}
+                        </span>
+                        ${p.stock <= 5 ? `<button onclick="addShoppingList('${p.name}')" class="block mt-1 text-[10px] text-indigo-500 font-bold bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100 w-full"><i class="fa-solid fa-plus"></i> Lấy hàng</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('filter-text').addEventListener('input', (e) => {
+            const activeTypeEl = document.querySelector('.inv-filter.active');
+            let type = 'all';
+            if(activeTypeEl.innerText.includes('hết')) type = 'low';
+            if(activeTypeEl.innerText.includes('date')) type = 'date';
+            renderInventory(type, e.target.value);
+        });
+
+        function calculateStats() {
+            let tItems = products.length;
+            let tMoney = products.reduce((sum, p) => sum + ((p.import_price||0) * (p.stock||0)), 0);
+            document.getElementById('stat-total-items').innerText = tItems;
+            document.getElementById('stat-total-money').innerText = formatMoney(tMoney);
+        }
+
+        // ==========================================
+        // TAB 5: ADMIN
+        // ==========================================
+        window.saveAdminSettings = async function() {
+            const mp = Number(document.getElementById('setting-money-per-point').value);
+            const pv = Number(document.getElementById('setting-point-value').value);
+            await setDoc(doc(db, `apps/${userId}/config`, 'settings'), { money_per_point: mp, point_value: pv });
+            showToast('Lưu cấu hình thành công', 'bg-green-500');
+        }
+
+        function renderAdminCustomers() {
+            const list = document.getElementById('admin-customers');
+            list.innerHTML = customers.sort((a,b)=>b.points-a.points).map(c => `
+                <div class="flex justify-between items-center p-2 border-b text-sm">
+                    <div>
+                        <p class="font-bold text-gray-700">${c.name}</p>
+                        <p class="text-xs text-gray-500">${c.phone||c.barcode}</p>
+                    </div>
+                    <span class="font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">${c.points} Điểm</span>
+                </div>
+            `).join('');
+        }
+
+        // ==========================================
+        // QUÉT MÃ VẠCH (HTML5-QRCODE)
+        // ==========================================
+        window.startScanner = function(context) {
+            currentScanContext = context;
+            document.getElementById('scanner-modal').classList.remove('hidden');
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
+
+            html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+            .catch(err => { showToast("Lỗi mở camera!", "bg-red-500"); stopScanner(); });
+        }
+
+        window.stopScanner = function() {
+            if (html5QrcodeScanner) html5QrcodeScanner.stop().then(() => html5QrcodeScanner.clear());
+            document.getElementById('scanner-modal').classList.add('hidden');
+        }
+
+        function onScanSuccess(decodedText) {
+            stopScanner();
+            if (currentScanContext === 'banhang') {
+                const product = products.find(p => p.barcode === decodedText);
+                if (product) addToCart(product.id);
+                else {
+                    document.getElementById('pos-search').value = decodedText;
+                    showToast('Mã mới! Vui lòng gõ tên để thêm tạm', 'bg-yellow-500');
+                }
+            } else if (currentScanContext === 'cannhap') {
+                document.getElementById('cn-input').value = decodedText;
+            } else if (currentScanContext === 'customer') {
+                const cust = customers.find(c => c.barcode === decodedText || c.phone === decodedText);
+                if (cust) selectCustomer(cust.id);
+                else showToast('Không tìm thấy khách hàng', 'bg-red-500');
+            }
+        }
+
+    </script>
+</body>
+</html>
