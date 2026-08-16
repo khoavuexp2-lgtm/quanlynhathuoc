@@ -418,17 +418,26 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // Thay Firebase Config của bạn vào đây
+        // CẤU HÌNH FULL TỪ FIREBASE CỦA BẠN (KHÔNG ĐƯỢC THIẾU APPID)
         const fbConfig = {
             apiKey: "AIzaSyA3BTAfXaLg2GeXgyxewlW4uIU69ngc_Is",
             authDomain: "quanly-nhathuoc.firebaseapp.com",
-            projectId: "quanly-nhathuoc"
+            projectId: "quanly-nhathuoc",
+            storageBucket: "quanly-nhathuoc.firebasestorage.app",
+            messagingSenderId: "989382797162",
+            appId: "1:989382797162:web:b1333c7db7e1ba84916713",
+            measurementId: "G-QGC1PJ99LX"
         };
         const app = initializeApp(fbConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        // HÀM HỖ TRỢ ĐƯỜNG DẪN CSDL CHUẨN (Khắc phục lỗi đếm Segment của Firebase)
+        const APP_ID = 'nhathuoc_app';
+        const col = (name) => collection(db, 'artifacts', APP_ID, 'public', 'data', name);
+        const dRef = (name, id) => doc(db, 'artifacts', APP_ID, 'public', 'data', name, id);
 
         // --- CẤU HÌNH TÀI KHOẢN ---
         const LOGIN_ID = 'thuoctaylananh';
@@ -463,10 +472,8 @@
         };
 
         window.switchTab = (tabId, title) => {
-            // Lấy toàn bộ mảng tab hiện có
             const tabs = ['banhang', 'khachhang', 'tonkho', 'dutru', 'nhaphang', 'admin'];
             
-            // Ẩn tất cả tab và loại bỏ highlight
             tabs.forEach(id => {
                 let el = document.getElementById('tab-' + id);
                 if(el) el.classList.remove('active');
@@ -476,7 +483,6 @@
                 btn.classList.add('text-slate-400');
             });
             
-            // Kích hoạt tab mục tiêu
             let targetEl = document.getElementById('tab-' + tabId);
             if(targetEl) targetEl.classList.add('active');
             
@@ -487,16 +493,14 @@
             }
             document.getElementById('header-title').innerText = title;
 
-            // Xử lý chuyên biệt khi vào từng Tab
             if (tabId === 'khachhang') setTimeout(renderCustomersList, 50);
             if (tabId === 'admin') {
                 showHistory(currentHistType);
-                // Delay render chart tí xíu để giao diện mở ra xong mới vẽ
                 setTimeout(() => window.initOrUpdateChart(currentChartPeriod), 100);
             }
         };
 
-        // --- XỬ LÝ ĐĂNG NHẬP (Lưu Session) ---
+        // --- XỬ LÝ ĐĂNG NHẬP ---
         document.getElementById('login-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const id = document.getElementById('login-id').value.trim();
@@ -529,14 +533,15 @@
                 await signInAnonymously(auth);
                 initFirebaseListeners();
             } catch(e) {
-                showToast('Lỗi kết nối CSDL (Kiểm tra Rules Firebase)', 'bg-red-500');
+                console.error(e);
+                showToast('Lỗi kết nối CSDL (Kiểm tra lại Rules & Domain)', 'bg-red-500');
             }
         }
 
-        // --- STREAMING_CHUNK:Firebase Realtime Listeners... ---
+        // --- Firebase Realtime Listeners ---
         function initFirebaseListeners() {
             // Settings
-            onSnapshot(doc(db, "public_data", "settings"), (docSnap) => {
+            onSnapshot(dRef("settings", "config"), (docSnap) => {
                 if (docSnap.exists()) {
                     settings = { ...settings, ...docSnap.data() };
                     document.getElementById('adm-rule-amt').value = settings.rule_amt || 100000;
@@ -546,7 +551,7 @@
             });
 
             // Products
-            onSnapshot(collection(db, "public_data", "products"), (snap) => {
+            onSnapshot(col("products"), (snap) => {
                 products = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 fuseProducts = new Fuse(products, { keys: ['name', 'barcode'], threshold: 0.3 });
                 renderInventory();
@@ -554,7 +559,7 @@
             });
 
             // Customers
-            onSnapshot(collection(db, "public_data", "customers"), (snap) => {
+            onSnapshot(col("customers"), (snap) => {
                 customers = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 fuseCustomers = new Fuse(customers, { keys: ['name', 'barcode', 'phone'], threshold: 0.3 });
                 if(document.getElementById('tab-khachhang').classList.contains('active')) renderCustomersList();
@@ -567,21 +572,20 @@
             });
 
             // Needs & Pending Imports
-            onSnapshot(collection(db, "public_data", "needs"), (snap) => {
+            onSnapshot(col("needs"), (snap) => {
                 needs = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 renderNeeds();
             });
-            onSnapshot(collection(db, "public_data", "pending_imports"), (snap) => {
+            onSnapshot(col("pending_imports"), (snap) => {
                 pendingImports = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 renderPendingImports();
             });
 
             // History
-            onSnapshot(collection(db, "public_data", "history"), (snap) => {
+            onSnapshot(col("history"), (snap) => {
                 historyRecords = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 historyRecords.sort((a,b) => b.timestamp - a.timestamp);
                 
-                // Cập nhật lại UI nếu đang ở tab Admin
                 if(document.getElementById('tab-admin').classList.contains('active')) {
                     showHistory(currentHistType);
                     window.initOrUpdateChart(currentChartPeriod);
@@ -589,7 +593,7 @@
             });
         }
 
-        // --- STREAMING_CHUNK:Quét Mã Vạch Siêu Mượt... ---
+        // --- Quét Mã Vạch ---
         window.startScanner = (context) => {
             scanContext = context;
             document.getElementById('scanner-modal').classList.remove('hidden');
@@ -606,9 +610,7 @@
         };
 
         window.stopScanner = () => {
-            // Tắt giao diện lập tức
             document.getElementById('scanner-modal').classList.add('hidden');
-            // Tắt phần cứng ngầm phía sau để chống giật lag iOS
             if (html5QrcodeScanner) {
                 html5QrcodeScanner.stop().then(() => html5QrcodeScanner.clear()).catch(()=>{});
             }
@@ -645,8 +647,7 @@
             }
         }
 
-        // --- STREAMING_CHUNK:Tab Bán Hàng (POS Logic)... ---
-        // Khách hàng Suggest
+        // --- Tab Bán Hàng (POS) ---
         document.getElementById('pos-customer-input').addEventListener('input', (e) => {
             const v = e.target.value, sugg = document.getElementById('pos-customer-suggest');
             if(!v || !fuseCustomers) return sugg.classList.add('hidden');
@@ -684,7 +685,6 @@
             calcPos();
         };
 
-        // Hàng hóa Suggest
         document.getElementById('pos-search-input').addEventListener('input', (e) => {
             const v = e.target.value, sugg = document.getElementById('pos-product-suggest');
             if(!v || !fuseProducts) return sugg.classList.add('hidden');
@@ -763,7 +763,6 @@
             usePoints = document.getElementById('pos-use-points').checked;
 
             if (currentCustomer && subtotal > 0) {
-                // Thuật toán: Trừ phần lẻ. (Ví dụ 103k -> lẻ 3k)
                 let maxPossibleDiscount = subtotal % settings.rule_amt; 
                 let cMoney = (currentCustomer.points || 0) * settings.rule_val;
                 let actualDiscount = Math.min(maxPossibleDiscount, cMoney);
@@ -773,7 +772,7 @@
 
                 if (usePoints && actualDiscount > 0) {
                     discount = actualDiscount;
-                    earnableAmount = subtotal - discount; // Điểm tính trên số còn lại
+                    earnableAmount = subtotal - discount;
                 }
             } else {
                 pointSec.classList.add('hidden');
@@ -785,7 +784,6 @@
             let finalTotal = subtotal - discount;
             document.getElementById('pos-final-total').innerText = fmtMoney(finalTotal);
 
-            // Điểm sẽ cộng
             let pointsEarned = Math.floor(earnableAmount / settings.rule_amt);
             let earnSec = document.getElementById('pos-earn-points');
             if(currentCustomer && pointsEarned > 0) {
@@ -793,7 +791,6 @@
                 earnSec.classList.remove('hidden');
             } else earnSec.classList.add('hidden');
 
-            // Tính tiền thừa (Khách đưa 100 = 100,000)
             let cashInput = Number(document.getElementById('pos-cash-given').value) || 0;
             let cashReal = cashInput * 1000;
             let change = cashReal - finalTotal;
@@ -816,20 +813,20 @@
             if(data.cashReal > 0 && data.change < 0) return showToast('Khách đưa chưa đủ tiền!', 'bg-red-500');
 
             try {
-                // 1. Trừ kho
+                // Trừ kho
                 for (let c of cart) {
                     let p = products.find(x => x.id === c.id);
-                    if(p) await updateDoc(doc(db, "public_data", "products", p.id), { stock: Math.max(0, p.stock - c.qty) });
+                    if(p) await updateDoc(dRef("products", p.id), { stock: Math.max(0, p.stock - c.qty) });
                 }
 
-                // 2. Cập nhật điểm KH
+                // Cập nhật điểm KH
                 let pointsDeducted = data.discount / settings.rule_val;
                 if(currentCustomer) {
                     let newPoints = currentCustomer.points - pointsDeducted + data.pointsEarned;
-                    await updateDoc(doc(db, "public_data", "customers", currentCustomer.id), { points: newPoints });
+                    await updateDoc(dRef("customers", currentCustomer.id), { points: newPoints });
                 }
 
-                // 3. Lưu Lịch sử
+                // Lưu Lịch sử
                 let record = {
                     type: 'sale',
                     items: cart,
@@ -838,17 +835,18 @@
                     customer: currentCustomer ? currentCustomer.name : 'Khách lẻ',
                     timestamp: Date.now()
                 };
-                await addDoc(collection(db, "public_data", "history"), record);
+                await addDoc(col("history"), record);
 
-                // 4. In Bill
+                // In Bill
                 printBill(record, data);
 
-                // 5. Reset Form
+                // Reset Form
                 cart = []; renderCart();
                 document.getElementById('pos-cash-given').value = '';
                 removePosCustomer();
                 showToast('Thanh toán thành công!', 'bg-indigo-600');
             } catch (e) {
+                console.error(e);
                 showToast('Lỗi thanh toán!', 'bg-red-500');
             }
         };
@@ -884,7 +882,7 @@
             window.print();
         }
 
-        // --- STREAMING_CHUNK:Thêm Hàng Hóa & Khách Hàng Nhanh (Optimistic)... ---
+        // --- Thêm Nhanh ---
         window.generateRandomBarcode = (id, prefix='SP') => {
             document.getElementById(id).value = prefix + Date.now().toString().slice(-6) + Math.floor(Math.random()*10);
         };
@@ -901,14 +899,11 @@
             closeQuickAdd(); 
             document.getElementById('qa-name').value = '';
             
-            // Xử lý Optimistic (Hiển thị ngay cho người dùng)
             let tempId = 'temp_' + Date.now();
             addToCart({id: tempId, name, sell_price: price, stock: 0});
             showToast('Đang lưu và đưa vào giỏ...', 'bg-indigo-600');
 
-            // Gửi dữ liệu nền
-            let docRef = await addDoc(collection(db, "public_data", "products"), { name, barcode, sell_price: price, stock: 0 });
-            // Cập nhật lại ID thật vào giỏ hàng
+            let docRef = await addDoc(col("products"), { name, barcode, sell_price: price, stock: 0 });
             let item = cart.find(x => x.id === tempId);
             if(item) Object.assign(item, { id: docRef.id });
         };
@@ -925,7 +920,6 @@
             closeCustomerAdd(); 
             let data = { name, phone, barcode, points: 0 };
             
-            // Xử lý Optimistic
             let tempId = 'temp_' + Date.now();
             setPosCustomer({id: tempId, ...data});
             showToast('Đang tạo KH...', 'bg-indigo-600');
@@ -933,11 +927,11 @@
             document.getElementById('ca-name').value=''; 
             document.getElementById('ca-phone').value='';
 
-            let docRef = await addDoc(collection(db, "public_data", "customers"), data);
+            let docRef = await addDoc(col("customers"), data);
             if(currentCustomer && currentCustomer.id === tempId) currentCustomer.id = docRef.id;
         };
 
-        // --- STREAMING_CHUNK:Quản Lý Khách Hàng (Tạo Hình Mã Vạch)... ---
+        // --- Tab Khách Hàng ---
         window.renderCustomersList = () => {
             let val = document.getElementById('cust-search-input').value;
             let list = customers;
@@ -958,11 +952,10 @@
                 </div>
             `).join('');
             
-            // Vẽ ảnh mã vạch bằng thư viện JsBarcode
             setTimeout(() => JsBarcode(".barcode-svg").init(), 50);
         };
 
-        // --- STREAMING_CHUNK:Quản Lý Tồn Kho... ---
+        // --- Tab Tồn Kho ---
         window.filterInventory = (type = null) => {
             if(type) {
                 document.querySelectorAll('.inv-btn').forEach(b => {
@@ -987,7 +980,7 @@
                 let now = dayjs();
                 list = list.filter(p => {
                     if(!p.hsd) return false;
-                    return dayjs(p.hsd, 'DD/MM/YYYY').diff(now, 'month') <= 3; // Cận 3 tháng
+                    return dayjs(p.hsd, 'DD/MM/YYYY').diff(now, 'month') <= 3;
                 });
             }
 
@@ -1007,7 +1000,7 @@
             `}).join('');
         }
 
-        // --- STREAMING_CHUNK:Dự Trù & Nhập Hàng (PO System)... ---
+        // --- Tab Dự Trù & Nhập Hàng ---
         document.getElementById('need-search').addEventListener('input', (e) => {
             const v = e.target.value, sugg = document.getElementById('need-suggest');
             if(!v || !fuseProducts) return sugg.classList.add('hidden');
@@ -1026,19 +1019,19 @@
         window.addNeedAuto = async (p) => {
             if(!p) return;
             if(needs.find(n => n.refId === p.id)) return showToast('Đã có trong list', 'bg-amber-500');
-            await addDoc(collection(db, "public_data", "needs"), { refId: p.id, name: p.name, barcode: p.barcode });
+            await addDoc(col("needs"), { refId: p.id, name: p.name, barcode: p.barcode });
             showToast('Đã thêm vào Dự Trù', 'bg-indigo-600');
         };
 
         window.addNeedManual = async () => {
             let v = document.getElementById('need-search').value;
             if(!v) return;
-            await addDoc(collection(db, "public_data", "needs"), { name: v });
+            await addDoc(col("needs"), { name: v });
             document.getElementById('need-search').value = '';
             showToast('Đã thêm tự do', 'bg-indigo-600');
         };
 
-        window.removeNeed = async (id) => { await deleteDoc(doc(db, "public_data", "needs", id)); };
+        window.removeNeed = async (id) => { await deleteDoc(dRef("needs", id)); };
 
         function renderNeeds() {
             document.getElementById('needs-list').innerHTML = needs.map(n => `
@@ -1051,11 +1044,9 @@
 
         window.orderNeeds = async () => {
             if(!needs.length) return showToast('Danh sách trống', 'bg-amber-500');
-            // Gom đơn hàng
             let order = { timestamp: Date.now(), items: needs.map(n => ({name: n.name, barcode: n.barcode || '', refId: n.refId || null})) };
-            await addDoc(collection(db, "public_data", "pending_imports"), order);
-            // Dọn dẹp Dự trù cũ
-            for(let n of needs) await deleteDoc(doc(db, "public_data", "needs", n.id));
+            await addDoc(col("pending_imports"), order);
+            for(let n of needs) await deleteDoc(dRef("needs", n.id));
             showToast('Đã chốt thành Đơn chờ Nhập Kho!', 'bg-indigo-600');
         };
 
@@ -1072,20 +1063,18 @@
         }
         
         window.deletePendingOrder = async (id) => {
-            if(confirm('Xóa đơn chờ nhập này?')) await deleteDoc(doc(db, "public_data", "pending_imports", id));
+            if(confirm('Xóa đơn chờ nhập này?')) await deleteDoc(dRef("pending_imports", id));
         };
 
         window.loadPendingOrder = (id) => {
             let order = pendingImports.find(x => x.id === id);
             if(!order || !order.items.length) return;
-            // Load SP đầu tiên trong list làm mẫu nhập liệu
             let p = order.items[0];
             let existP = products.find(x => x.id === p.refId || x.barcode === p.barcode);
             fillImportForm(existP || { name: p.name, barcode: p.barcode });
             showToast(`Đã gọi Đơn hàng ${dayjs(order.timestamp).format('DD/MM')}`, 'bg-indigo-600');
         }
 
-        // --- STREAMING_CHUNK:Quản Lý Nhập Kho (Format HSD & Auto Date)... ---
         window.formatHSD = (input) => {
             let v = input.value.replace(/\D/g, '');
             if(v.length === 6) {
@@ -1114,7 +1103,6 @@
 
             if(!name || !qty) return showToast('Thiếu Tên hoặc Số Lượng!', 'bg-red-500');
             
-            // Xử lý HSD rỗng -> Tự cộng 1 năm
             if(!hsd) hsd = dayjs().add(1, 'year').format('DD/MM/YYYY') + ' (Auto)';
 
             let data = { name, barcode, import_price: in_price, sell_price: out_price, hsd };
@@ -1124,29 +1112,29 @@
                 if (id) {
                     let oldP = products.find(x => x.id === id);
                     data.stock = (oldP.stock || 0) + qty;
-                    await updateDoc(doc(db, "public_data", "products", id), data);
+                    await updateDoc(dRef("products", id), data);
                 } else {
                     data.stock = qty;
-                    await addDoc(collection(db, "public_data", "products"), data);
+                    await addDoc(col("products"), data);
                 }
                 
-                // Lưu lịch sử nhập
-                await addDoc(collection(db, "public_data", "history"), {
+                await addDoc(col("history"), {
                     type: 'import', name, qty, total: qty * in_price, timestamp: Date.now()
                 });
 
-                fillImportForm({}); // Reset
+                fillImportForm({}); 
                 showToast('Lưu Kho Thành Công!', 'bg-indigo-600');
             } catch (e) {
+                console.error(e);
                 showToast('Lỗi lưu kho!', 'bg-red-500');
             }
         };
 
-        // --- STREAMING_CHUNK:Quản Trị Admin & Biểu Đồ Doanh Thu ---
+        // --- Tab Admin ---
         window.saveAdminRules = async () => {
             let amt = Number(document.getElementById('adm-rule-amt').value);
             let val = Number(document.getElementById('adm-rule-val').value);
-            await updateDoc(doc(db, "public_data", "settings"), { rule_amt: amt, rule_val: val });
+            await setDoc(dRef("settings", "config"), { rule_amt: amt, rule_val: val }, { merge: true });
             showToast('Lưu quy tắc thành công', 'bg-indigo-600');
         };
 
@@ -1181,14 +1169,11 @@
             }).join('');
         };
 
-        // Khởi tạo hoặc Cập nhật Biểu đồ (Chart.js)
         window.initOrUpdateChart = (period = '7days') => {
             const ctx = document.getElementById('revenueChart');
             if(!ctx) return;
 
-            // Lọc doanh thu bán hàng
             const sales = historyRecords.filter(h => h.type === 'sale');
-            
             let labels = [];
             let dataMap = {};
             const now = dayjs();
@@ -1277,7 +1262,6 @@
             }
             window.initOrUpdateChart(period);
         };
-
     </script>
 </body>
 </html>
