@@ -15,15 +15,22 @@
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <!-- Fuse.js -->
     <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
-    <!-- Day.js cho xử lý ngày tháng -->
+    <!-- Day.js -->
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/customParseFormat.js"></script>
     <script>dayjs.extend(window.dayjs_plugin_customParseFormat)</script>
+    <!-- Chart.js (Biểu đồ) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body { -webkit-tap-highlight-color: transparent; background-color: #f8fafc; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+        
+        /* FIX LỖI CHỒNG TAB: Ép buộc ẩn/hiện bằng !important để đè Tailwind */
+        .tab-content { display: none !important; }
+        .tab-content.active { display: block !important; animation: fadeIn 0.3s ease; }
+        /* Tab Bán Hàng cần cấu trúc flex thay vì block */
+        .tab-content.active.is-flex { display: flex !important; }
+
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -83,6 +90,7 @@
         </div>
     </div>
 
+    <!-- ỨNG DỤNG CHÍNH -->
     <div id="app-container" class="hidden h-full flex flex-col w-full relative">
         <header class="bg-indigo-700 text-white p-4 shadow-md flex justify-between items-center z-10 sticky top-0">
             <h1 class="text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-store"></i> <span id="header-title">Bán Hàng</span></h1>
@@ -90,7 +98,7 @@
 
         <main class="flex-1 overflow-y-auto pb-24 p-3 md:p-4 bg-slate-50">
             
-            <div id="tab-banhang" class="tab-content active h-full flex flex-col max-w-3xl mx-auto">
+            <div id="tab-banhang" class="tab-content active is-flex h-full flex-col max-w-3xl mx-auto">
                 
                 <!-- Chọn Khách Hàng -->
                 <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 mb-3 relative">
@@ -272,12 +280,32 @@
             <div id="tab-admin" class="tab-content max-w-3xl mx-auto">
                 <div class="flex justify-between items-center mb-4 bg-white p-3 rounded-xl shadow border border-slate-200">
                     <div>
-                        <h2 class="text-lg font-bold text-slate-800">Cấu Hình Quản Trị</h2>
-                        <p class="text-xs text-slate-500">Quản lý quy tắc và lịch sử</p>
+                        <h2 class="text-lg font-bold text-slate-800">Bảng Điều Khiển</h2>
+                        <p class="text-xs text-slate-500">Quản trị & Phân tích</p>
                     </div>
                     <button onclick="logoutAdmin()" class="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-sm font-bold border border-red-200 hover:bg-red-100"><i class="fa-solid fa-power-off"></i> Đăng xuất</button>
                 </div>
 
+                <!-- BIỂU ĐỒ DOANH THU -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-4">
+                    <h3 class="font-bold text-slate-700 mb-3 border-b pb-2"><i class="fa-solid fa-chart-pie text-indigo-600"></i> Báo Cáo Doanh Thu</h3>
+                    <div class="flex gap-2 mb-3">
+                        <button onclick="updateChart('7days')" id="btn-chart-7days" class="chart-btn active px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm">7 Ngày</button>
+                        <button onclick="updateChart('month')" id="btn-chart-month" class="chart-btn px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-xs font-bold transition">Tháng Này</button>
+                        <button onclick="updateChart('year')" id="btn-chart-year" class="chart-btn px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-xs font-bold transition">Năm Nay</button>
+                    </div>
+                    
+                    <div class="relative h-48 w-full mt-4">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                    
+                    <div class="mt-4 flex justify-between items-center text-sm bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                        <span class="text-indigo-800 font-medium">Tổng doanh thu kỳ này:</span>
+                        <span id="chart-total-revenue" class="font-extrabold text-indigo-700 text-lg">0đ</span>
+                    </div>
+                </div>
+
+                <!-- CẤU HÌNH TÍCH ĐIỂM -->
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-4">
                     <h3 class="font-bold text-slate-700 mb-3 border-b pb-2"><i class="fa-solid fa-gear text-indigo-600"></i> Quy Tắc Tích Điểm</h3>
                     <div class="flex items-center justify-between mb-3">
@@ -291,10 +319,11 @@
                         <span class="text-sm font-medium">1 Điểm đổi (VND)</span>
                         <input type="number" id="adm-rule-val" class="w-24 p-1.5 border border-slate-300 rounded bg-slate-50 text-right font-bold text-indigo-600">
                     </div>
-                    <button onclick="saveAdminRules()" class="w-full bg-slate-800 text-white font-bold py-2.5 rounded-lg shadow">Lưu Quy Tắc</button>
+                    <button onclick="saveAdminRules()" class="w-full bg-slate-800 text-white font-bold py-2.5 rounded-lg shadow hover:bg-slate-700 transition">Lưu Quy Tắc</button>
                 </div>
 
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <!-- LỊCH SỬ GIAO DỊCH -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-4">
                     <div class="flex border-b text-sm font-bold text-center">
                         <button class="w-1/2 py-3 bg-indigo-50 text-indigo-700" id="btn-hist-sale" onclick="showHistory('sale')">Lịch Sử Bán</button>
                         <button class="w-1/2 py-3 text-slate-500 hover:bg-slate-50" id="btn-hist-imp" onclick="showHistory('import')">Lịch Sử Nhập</button>
@@ -322,7 +351,7 @@
                 <button onclick="switchTab('nhaphang', 'Nhập Kho')" class="nav-btn flex flex-col items-center min-w-[60px] py-2 text-slate-400" data-tab="nhaphang">
                     <i class="fa-solid fa-truck-ramp-box text-xl mb-1"></i><span class="text-[9px] font-bold uppercase tracking-wider">Nhập Hàng</span>
                 </button>
-                <button onclick="switchTab('admin', 'Quản Trị Hệ Thống')" class="nav-btn flex flex-col items-center min-w-[60px] py-2 text-slate-400" data-tab="admin">
+                <button onclick="switchTab('admin', 'Bảng Điều Khiển')" class="nav-btn flex flex-col items-center min-w-[60px] py-2 text-slate-400" data-tab="admin">
                     <i class="fa-solid fa-chart-line text-xl mb-1"></i><span class="text-[9px] font-bold uppercase tracking-wider">Admin</span>
                 </button>
             </div>
@@ -391,7 +420,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // Firebase Config Của Bạn
+        // Thay Firebase Config của bạn vào đây
         const fbConfig = {
             apiKey: "AIzaSyA3BTAfXaLg2GeXgyxewlW4uIU69ngc_Is",
             authDomain: "quanly-nhathuoc.firebaseapp.com",
@@ -401,7 +430,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Constants & State
+        // --- CẤU HÌNH TÀI KHOẢN ---
         const LOGIN_ID = 'thuoctaylananh';
         const LOGIN_PASS = 'lananh123@';
         
@@ -416,9 +445,13 @@
         let html5QrcodeScanner = null;
         let scanContext = '';
         let currentHistType = 'sale';
+        
+        // Biến dùng cho Chart.js
+        let revChart = null;
+        let currentChartPeriod = '7days';
 
-        // --- Utils ---
-        const fmtMoney = (n) => new Intl.NumberFormat('en-US').format(n || 0); // Dùng dấu phẩy 100,000
+        // --- HÀM TIỆN ÍCH ---
+        const fmtMoney = (n) => new Intl.NumberFormat('en-US').format(n || 0);
         const uuid = () => Math.random().toString(36).substring(2, 10);
         
         window.showToast = (msg, color = 'bg-slate-800') => {
@@ -430,13 +463,23 @@
         };
 
         window.switchTab = (tabId, title) => {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-' + tabId).classList.add('active');
+            // Lấy toàn bộ mảng tab hiện có
+            const tabs = ['banhang', 'khachhang', 'tonkho', 'dutru', 'nhaphang', 'admin'];
             
+            // Ẩn tất cả tab và loại bỏ highlight
+            tabs.forEach(id => {
+                let el = document.getElementById('tab-' + id);
+                if(el) el.classList.remove('active');
+            });
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.remove('text-indigo-600');
                 btn.classList.add('text-slate-400');
             });
+            
+            // Kích hoạt tab mục tiêu
+            let targetEl = document.getElementById('tab-' + tabId);
+            if(targetEl) targetEl.classList.add('active');
+            
             let activeBtn = document.querySelector(`.nav-btn[data-tab="${tabId}"]`);
             if(activeBtn) {
                 activeBtn.classList.add('text-indigo-600');
@@ -444,11 +487,16 @@
             }
             document.getElementById('header-title').innerText = title;
 
+            // Xử lý chuyên biệt khi vào từng Tab
             if (tabId === 'khachhang') setTimeout(renderCustomersList, 50);
-            if (tabId === 'admin') showHistory(currentHistType);
+            if (tabId === 'admin') {
+                showHistory(currentHistType);
+                // Delay render chart tí xíu để giao diện mở ra xong mới vẽ
+                setTimeout(() => window.initOrUpdateChart(currentChartPeriod), 100);
+            }
         };
 
-        // --- Đăng nhập ---
+        // --- XỬ LÝ ĐĂNG NHẬP (Lưu Session) ---
         document.getElementById('login-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const id = document.getElementById('login-id').value.trim();
@@ -463,7 +511,7 @@
         });
 
         window.logoutAdmin = () => {
-            if(confirm("Bạn muốn đăng xuất?")) {
+            if(confirm("Bạn muốn đăng xuất khỏi máy này?")) {
                 localStorage.removeItem('pos_session');
                 window.location.reload();
             }
@@ -481,18 +529,18 @@
                 await signInAnonymously(auth);
                 initFirebaseListeners();
             } catch(e) {
-                showToast('Lỗi kết nối CSDL (Kiểm tra Rules)', 'bg-red-500');
+                showToast('Lỗi kết nối CSDL (Kiểm tra Rules Firebase)', 'bg-red-500');
             }
         }
 
-        // --- STREAMING_CHUNK:Firebase Realtime Listeners ---
+        // --- STREAMING_CHUNK:Firebase Realtime Listeners... ---
         function initFirebaseListeners() {
             // Settings
             onSnapshot(doc(db, "public_data", "settings"), (docSnap) => {
                 if (docSnap.exists()) {
                     settings = { ...settings, ...docSnap.data() };
-                    document.getElementById('adm-rule-amt').value = settings.rule_amt;
-                    document.getElementById('adm-rule-val').value = settings.rule_val;
+                    document.getElementById('adm-rule-amt').value = settings.rule_amt || 100000;
+                    document.getElementById('adm-rule-val').value = settings.rule_val || 1000;
                     calcPos();
                 }
             });
@@ -502,7 +550,7 @@
                 products = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 fuseProducts = new Fuse(products, { keys: ['name', 'barcode'], threshold: 0.3 });
                 renderInventory();
-                if(cart.length > 0) renderCart(); // Update prices if changed
+                if(cart.length > 0) renderCart(); 
             });
 
             // Customers
@@ -532,11 +580,16 @@
             onSnapshot(collection(db, "public_data", "history"), (snap) => {
                 historyRecords = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 historyRecords.sort((a,b) => b.timestamp - a.timestamp);
-                if(document.getElementById('tab-admin').classList.contains('active')) showHistory(currentHistType);
+                
+                // Cập nhật lại UI nếu đang ở tab Admin
+                if(document.getElementById('tab-admin').classList.contains('active')) {
+                    showHistory(currentHistType);
+                    window.initOrUpdateChart(currentChartPeriod);
+                }
             });
         }
 
-        // --- STREAMING_CHUNK:Quét Mã Vạch ---
+        // --- STREAMING_CHUNK:Quét Mã Vạch Siêu Mượt... ---
         window.startScanner = (context) => {
             scanContext = context;
             document.getElementById('scanner-modal').classList.remove('hidden');
@@ -553,7 +606,9 @@
         };
 
         window.stopScanner = () => {
+            // Tắt giao diện lập tức
             document.getElementById('scanner-modal').classList.add('hidden');
+            // Tắt phần cứng ngầm phía sau để chống giật lag iOS
             if (html5QrcodeScanner) {
                 html5QrcodeScanner.stop().then(() => html5QrcodeScanner.clear()).catch(()=>{});
             }
@@ -590,7 +645,7 @@
             }
         }
 
-        // --- STREAMING_CHUNK:Tab Bán Hàng (POS Logic) ---
+        // --- STREAMING_CHUNK:Tab Bán Hàng (POS Logic)... ---
         // Khách hàng Suggest
         document.getElementById('pos-customer-input').addEventListener('input', (e) => {
             const v = e.target.value, sugg = document.getElementById('pos-customer-suggest');
@@ -710,8 +765,6 @@
             if (currentCustomer && subtotal > 0) {
                 // Thuật toán: Trừ phần lẻ. (Ví dụ 103k -> lẻ 3k)
                 let maxPossibleDiscount = subtotal % settings.rule_amt; 
-                // Nếu tròn tiền, giả sử 200k, không trừ điểm lẻ.
-                
                 let cMoney = (currentCustomer.points || 0) * settings.rule_val;
                 let actualDiscount = Math.min(maxPossibleDiscount, cMoney);
 
@@ -720,7 +773,7 @@
 
                 if (usePoints && actualDiscount > 0) {
                     discount = actualDiscount;
-                    earnableAmount = subtotal - discount; // Tính điểm dựa trên số tiền còn lại
+                    earnableAmount = subtotal - discount; // Điểm tính trên số còn lại
                 }
             } else {
                 pointSec.classList.add('hidden');
@@ -732,7 +785,7 @@
             let finalTotal = subtotal - discount;
             document.getElementById('pos-final-total').innerText = fmtMoney(finalTotal);
 
-            // Điểm sẽ được cộng
+            // Điểm sẽ cộng
             let pointsEarned = Math.floor(earnableAmount / settings.rule_amt);
             let earnSec = document.getElementById('pos-earn-points');
             if(currentCustomer && pointsEarned > 0) {
@@ -740,7 +793,7 @@
                 earnSec.classList.remove('hidden');
             } else earnSec.classList.add('hidden');
 
-            // Tính tiền thừa (Khách đưa gõ 100 = 100,000)
+            // Tính tiền thừa (Khách đưa 100 = 100,000)
             let cashInput = Number(document.getElementById('pos-cash-given').value) || 0;
             let cashReal = cashInput * 1000;
             let change = cashReal - finalTotal;
@@ -769,14 +822,14 @@
                     if(p) await updateDoc(doc(db, "public_data", "products", p.id), { stock: Math.max(0, p.stock - c.qty) });
                 }
 
-                // 2. Điểm khách hàng
+                // 2. Cập nhật điểm KH
                 let pointsDeducted = data.discount / settings.rule_val;
                 if(currentCustomer) {
                     let newPoints = currentCustomer.points - pointsDeducted + data.pointsEarned;
                     await updateDoc(doc(db, "public_data", "customers", currentCustomer.id), { points: newPoints });
                 }
 
-                // 3. Lưu lịch sử
+                // 3. Lưu Lịch sử
                 let record = {
                     type: 'sale',
                     items: cart,
@@ -790,7 +843,7 @@
                 // 4. In Bill
                 printBill(record, data);
 
-                // Reset
+                // 5. Reset Form
                 cart = []; renderCart();
                 document.getElementById('pos-cash-given').value = '';
                 removePosCustomer();
@@ -831,7 +884,7 @@
             window.print();
         }
 
-        // --- STREAMING_CHUNK:Thêm nhanh & Random ---
+        // --- STREAMING_CHUNK:Thêm Hàng Hóa & Khách Hàng Nhanh (Optimistic)... ---
         window.generateRandomBarcode = (id, prefix='SP') => {
             document.getElementById(id).value = prefix + Date.now().toString().slice(-6) + Math.floor(Math.random()*10);
         };
@@ -845,13 +898,19 @@
             let price = Number(document.getElementById('qa-price').value) || 0;
             if(!name) return showToast('Thiếu tên!', 'bg-red-500');
             
-            // Cập nhật giao diện lập tức (Optimistic)
-            closeQuickAdd(); showToast('Đang lưu...', 'bg-slate-600');
+            closeQuickAdd(); 
             document.getElementById('qa-name').value = '';
             
+            // Xử lý Optimistic (Hiển thị ngay cho người dùng)
+            let tempId = 'temp_' + Date.now();
+            addToCart({id: tempId, name, sell_price: price, stock: 0});
+            showToast('Đang lưu và đưa vào giỏ...', 'bg-indigo-600');
+
+            // Gửi dữ liệu nền
             let docRef = await addDoc(collection(db, "public_data", "products"), { name, barcode, sell_price: price, stock: 0 });
-            addToCart({id: docRef.id, name, sell_price: price, stock: 0});
-            showToast('Lưu và thêm giỏ thành công!', 'bg-indigo-600');
+            // Cập nhật lại ID thật vào giỏ hàng
+            let item = cart.find(x => x.id === tempId);
+            if(item) Object.assign(item, { id: docRef.id });
         };
 
         window.showCustomerAdd = () => { document.getElementById('customer-add-modal').classList.remove('hidden'); };
@@ -863,16 +922,22 @@
             let barcode = document.getElementById('ca-barcode').value;
             if(!name) return showToast('Thiếu tên!', 'bg-red-500');
             
-            closeCustomerAdd(); showToast('Đang tạo KH...', 'bg-slate-600');
+            closeCustomerAdd(); 
             let data = { name, phone, barcode, points: 0 };
-            let docRef = await addDoc(collection(db, "public_data", "customers"), data);
             
-            setPosCustomer({id: docRef.id, ...data});
-            showToast('Tạo KH thành công!', 'bg-indigo-600');
-            document.getElementById('ca-name').value=''; document.getElementById('ca-phone').value='';
+            // Xử lý Optimistic
+            let tempId = 'temp_' + Date.now();
+            setPosCustomer({id: tempId, ...data});
+            showToast('Đang tạo KH...', 'bg-indigo-600');
+            
+            document.getElementById('ca-name').value=''; 
+            document.getElementById('ca-phone').value='';
+
+            let docRef = await addDoc(collection(db, "public_data", "customers"), data);
+            if(currentCustomer && currentCustomer.id === tempId) currentCustomer.id = docRef.id;
         };
 
-        // --- STREAMING_CHUNK:Quản Lý Khách Hàng ---
+        // --- STREAMING_CHUNK:Quản Lý Khách Hàng (Tạo Hình Mã Vạch)... ---
         window.renderCustomersList = () => {
             let val = document.getElementById('cust-search-input').value;
             let list = customers;
@@ -892,10 +957,12 @@
                     </div>
                 </div>
             `).join('');
-            JsBarcode(".barcode-svg").init();
+            
+            // Vẽ ảnh mã vạch bằng thư viện JsBarcode
+            setTimeout(() => JsBarcode(".barcode-svg").init(), 50);
         };
 
-        // --- STREAMING_CHUNK:Quản Lý Tồn Kho ---
+        // --- STREAMING_CHUNK:Quản Lý Tồn Kho... ---
         window.filterInventory = (type = null) => {
             if(type) {
                 document.querySelectorAll('.inv-btn').forEach(b => {
@@ -940,7 +1007,7 @@
             `}).join('');
         }
 
-        // --- STREAMING_CHUNK:Dự Trù & Nhập Hàng ---
+        // --- STREAMING_CHUNK:Dự Trù & Nhập Hàng (PO System)... ---
         document.getElementById('need-search').addEventListener('input', (e) => {
             const v = e.target.value, sugg = document.getElementById('need-suggest');
             if(!v || !fuseProducts) return sugg.classList.add('hidden');
@@ -984,21 +1051,22 @@
 
         window.orderNeeds = async () => {
             if(!needs.length) return showToast('Danh sách trống', 'bg-amber-500');
+            // Gom đơn hàng
             let order = { timestamp: Date.now(), items: needs.map(n => ({name: n.name, barcode: n.barcode || '', refId: n.refId || null})) };
             await addDoc(collection(db, "public_data", "pending_imports"), order);
-            // Xóa needs cũ
+            // Dọn dẹp Dự trù cũ
             for(let n of needs) await deleteDoc(doc(db, "public_data", "needs", n.id));
-            showToast('Đã chốt thành Đơn chờ!', 'bg-indigo-600');
+            showToast('Đã chốt thành Đơn chờ Nhập Kho!', 'bg-indigo-600');
         };
 
         function renderPendingImports() {
             let div = document.getElementById('import-pending-orders');
             if(!pendingImports.length) { div.innerHTML = '<p class="text-xs text-slate-400 italic">Trống</p>'; return; }
             div.innerHTML = pendingImports.map(pi => `
-                <div class="min-w-[120px] bg-indigo-50 border border-indigo-200 p-2 rounded-xl text-center relative">
+                <div class="min-w-[120px] bg-indigo-50 border border-indigo-200 p-2 rounded-xl text-center relative cursor-pointer" onclick="loadPendingOrder('${pi.id}')">
                     <p class="text-[10px] text-indigo-400 mb-1">${dayjs(pi.timestamp).format('DD/MM HH:mm')}</p>
                     <p class="text-sm font-bold text-indigo-800">${pi.items.length} SP</p>
-                    <button onclick="deletePendingOrder('${pi.id}')" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full text-[10px]"><i class="fa-solid fa-times"></i></button>
+                    <button onclick="event.stopPropagation(); deletePendingOrder('${pi.id}')" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full text-[10px]"><i class="fa-solid fa-times"></i></button>
                 </div>
             `).join('');
         }
@@ -1007,7 +1075,17 @@
             if(confirm('Xóa đơn chờ nhập này?')) await deleteDoc(doc(db, "public_data", "pending_imports", id));
         };
 
-        // Nhập liệu HSD tự động ddmmyy -> dd/mm/yyyy
+        window.loadPendingOrder = (id) => {
+            let order = pendingImports.find(x => x.id === id);
+            if(!order || !order.items.length) return;
+            // Load SP đầu tiên trong list làm mẫu nhập liệu
+            let p = order.items[0];
+            let existP = products.find(x => x.id === p.refId || x.barcode === p.barcode);
+            fillImportForm(existP || { name: p.name, barcode: p.barcode });
+            showToast(`Đã gọi Đơn hàng ${dayjs(order.timestamp).format('DD/MM')}`, 'bg-indigo-600');
+        }
+
+        // --- STREAMING_CHUNK:Quản Lý Nhập Kho (Format HSD & Auto Date)... ---
         window.formatHSD = (input) => {
             let v = input.value.replace(/\D/g, '');
             if(v.length === 6) {
@@ -1064,7 +1142,7 @@
             }
         };
 
-        // --- STREAMING_CHUNK:Quản Trị Admin ---
+        // --- STREAMING_CHUNK:Quản Trị Admin & Biểu Đồ Doanh Thu ---
         window.saveAdminRules = async () => {
             let amt = Number(document.getElementById('adm-rule-amt').value);
             let val = Number(document.getElementById('adm-rule-val').value);
@@ -1102,6 +1180,104 @@
                 }
             }).join('');
         };
+
+        // Khởi tạo hoặc Cập nhật Biểu đồ (Chart.js)
+        window.initOrUpdateChart = (period = '7days') => {
+            const ctx = document.getElementById('revenueChart');
+            if(!ctx) return;
+
+            // Lọc doanh thu bán hàng
+            const sales = historyRecords.filter(h => h.type === 'sale');
+            
+            let labels = [];
+            let dataMap = {};
+            const now = dayjs();
+            
+            if (period === '7days') {
+                for(let i=6; i>=0; i--) {
+                    let d = now.subtract(i, 'day').format('DD/MM');
+                    labels.push(d);
+                    dataMap[d] = 0;
+                }
+                sales.forEach(s => {
+                    let d = dayjs(s.timestamp).format('DD/MM');
+                    if(dataMap[d] !== undefined) dataMap[d] += s.total;
+                });
+            } else if (period === 'month') {
+                const daysInMonth = now.daysInMonth();
+                for(let i=1; i<=daysInMonth; i++) {
+                    let d = now.date(i).format('DD/MM');
+                    labels.push(d);
+                    dataMap[d] = 0;
+                }
+                sales.forEach(s => {
+                    let sDate = dayjs(s.timestamp);
+                    if (sDate.month() === now.month() && sDate.year() === now.year()) {
+                        let d = sDate.format('DD/MM');
+                        if(dataMap[d] !== undefined) dataMap[d] += s.total;
+                    }
+                });
+            } else if (period === 'year') {
+                for(let i=1; i<=12; i++) {
+                    let m = `Th${i}`;
+                    labels.push(m);
+                    dataMap[m] = 0;
+                }
+                sales.forEach(s => {
+                    let sDate = dayjs(s.timestamp);
+                    if (sDate.year() === now.year()) {
+                        let m = `Th${sDate.month() + 1}`;
+                        if(dataMap[m] !== undefined) dataMap[m] += s.total;
+                    }
+                });
+            }
+
+            const dataValues = labels.map(l => dataMap[l]);
+            const totalRev = dataValues.reduce((a,b)=>a+b, 0);
+            document.getElementById('chart-total-revenue').innerText = fmtMoney(totalRev);
+
+            if(revChart) {
+                revChart.data.labels = labels;
+                revChart.data.datasets[0].data = dataValues;
+                revChart.update();
+            } else {
+                revChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Doanh thu (VNĐ)',
+                            data: dataValues,
+                            backgroundColor: '#4f46e5',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { callback: (value) => (value/1000) + 'k' } }
+                        }
+                    }
+                });
+            }
+        };
+
+        window.updateChart = (period) => {
+            currentChartPeriod = period;
+            document.querySelectorAll('.chart-btn').forEach(b => {
+                b.classList.remove('active', 'bg-indigo-600', 'text-white', 'shadow-sm');
+                b.classList.add('bg-slate-100', 'text-slate-600');
+            });
+            const btn = document.getElementById('btn-chart-' + period);
+            if(btn) {
+                btn.classList.remove('bg-slate-100', 'text-slate-600');
+                btn.classList.add('active', 'bg-indigo-600', 'text-white', 'shadow-sm');
+            }
+            window.initOrUpdateChart(period);
+        };
+
     </script>
 </body>
 </html>
