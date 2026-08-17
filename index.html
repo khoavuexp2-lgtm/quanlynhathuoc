@@ -855,6 +855,14 @@
 
         window.closeReceiptModal = () => document.getElementById('receipt-modal').classList.add('hidden');
 
+        // HÀM IN TỐI ƯU CHO IOS
+        window.triggerPrint = () => {
+            // Delay 1 chút để DOM iOS kịp render bản in A6 trước khi gọi hộp thoại
+            setTimeout(() => {
+                window.print();
+            }, 150);
+        };
+
         // SHARE HÓA ĐƠN QUA HTML2CANVAS
         window.shareReceipt = async () => {
             const el = document.getElementById('receipt-preview-content');
