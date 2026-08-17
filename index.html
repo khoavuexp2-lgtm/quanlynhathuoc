@@ -823,58 +823,57 @@
         window.showReceipt = (record) => {
             let isRet = record.type === 'return';
             
-            // 1. Bản Preview trên App (cuộn tự do, giao diện cũ)
+            // 1. Bản Preview trên App (Thu gọn cho màn hình điện thoại)
             let previewHtml = `
-                <div class="text-center mb-3" style="font-family: monospace;">
+                <div class="text-center mb-3">
                     <h2 class="font-bold text-lg">${isRet ? 'PHIẾU TRẢ HÀNG' : 'HÓA ĐƠN BÁN HÀNG'}</h2>
                     <p class="text-xs text-slate-500">${dayjs(record.timestamp).format('DD/MM/YYYY HH:mm')} - ${record.orderId}</p>
                     <p class="text-xs font-bold mt-1">Khách: ${record.customer}</p>
                 </div>
-                <table class="w-full text-xs mb-3" style="font-family: monospace;">
+                <table class="w-full text-xs mb-3">
                     <tr class="border-b border-dashed border-slate-300">
-                        <th class="text-left py-1">SP</th><th class="text-right py-1">SL</th><th class="text-right py-1">Tiền</th>
+                        <th class="text-left py-1">SP</th><th class="text-right py-1">SL x Giá</th>
                     </tr>
                     ${record.items.map(i => `
                     <tr>
-                        <td class="py-1 pr-1">${i.name} <span class="text-[9px] block text-slate-500">${i.unit} (Lô:${i.hsd||'--'})</span></td>
-                        <td class="text-right py-1" style="vertical-align: top;">${isRet?'-':''}${i.qty}</td>
-                        <td class="text-right py-1" style="vertical-align: top;">${formatMoney(i.qty*i.price)}</td>
+                        <td class="py-1.5 pr-1 font-semibold leading-tight">${i.name} <span class="text-[9px] block text-slate-500 font-normal mt-0.5">${i.unit} (Lô:${i.hsd||'--'})</span></td>
+                        <td class="text-right py-1.5 align-top font-bold">${isRet?'-':''}${i.qty} <span class="text-slate-400 font-normal">x${formatMoney(i.price)}</span></td>
                     </tr>`).join('')}
                 </table>
-                <div class="border-t border-dashed border-slate-300 pt-2 text-right text-sm" style="font-family: monospace;">
+                <div class="border-t border-dashed border-slate-300 pt-2 text-right text-sm">
                     <p>Cộng tiền: ${formatMoney(Math.abs(record.sum))}</p>
-                    ${record.discount ? `<p class="text-red-500">Trừ điểm: -${formatMoney(record.discount)}</p>` : ''}
-                    ${isRet && record.pointsChange < 0 ? `<p class="text-red-500">Thu hồi: ${record.pointsChange} điểm</p>` : ''}
-                    <h3 class="font-bold text-base mt-1 text-slate-900">${isRet?'HOÀN TRẢ':'THANH TOÁN'}: ${formatMoney(Math.abs(record.total))}</h3>
+                    ${record.discount ? `<p class="text-red-600">Trừ điểm: -${formatMoney(record.discount)}</p>` : ''}
+                    ${isRet && record.pointsChange < 0 ? `<p class="text-red-600">Thu hồi: ${record.pointsChange} điểm</p>` : ''}
+                    <h3 class="font-bold text-base mt-1 text-indigo-900">${isRet?'HOÀN TRẢ':'THANH TOÁN'}: ${formatMoney(Math.abs(record.total))}</h3>
                 </div>
             `;
             document.getElementById('receipt-preview-content').innerHTML = previewHtml;
             
-            // 2. Bản in ảo (Flexbox ép tổng tiền xuống đáy, cố định kích thước A6 dọc)
+            // 2. Bản in Ảo A6 Dọc (Cho Web Print & Share)
             let printHtml = `
-                <div class="text-center mb-3">
+                <div class="text-center mb-2">
                     <h2 class="font-bold text-xl">${isRet ? 'PHIẾU TRẢ HÀNG' : 'HÓA ĐƠN BÁN HÀNG'}</h2>
                     <p class="text-sm text-slate-500">${dayjs(record.timestamp).format('DD/MM/YYYY HH:mm')} - ${record.orderId}</p>
                     <p class="text-sm font-bold mt-1">Khách: ${record.customer}</p>
                 </div>
-                <div class="flex-1">
+                <div class="flex-1 overflow-hidden">
                     <table class="w-full text-sm">
                         <tr class="border-b border-dashed border-slate-400">
-                            <th class="text-left py-1">SP</th><th class="text-right py-1">SL</th><th class="text-right py-1">Tiền</th>
+                            <th class="text-left py-1 w-1/2">SP</th><th class="text-right py-1">SL</th><th class="text-right py-1">Tiền</th>
                         </tr>
                         ${record.items.map(i => `
                         <tr>
-                            <td class="py-1 pr-1 font-semibold">${i.name} <span class="text-[11px] block text-slate-500 font-normal">${i.unit} (Lô:${i.hsd||'--'})</span></td>
-                            <td class="text-right py-1" style="vertical-align: top;">${isRet?'-':''}${i.qty}</td>
-                            <td class="text-right py-1" style="vertical-align: top;">${formatMoney(i.qty*i.price)}</td>
+                            <td class="py-1 pr-1 font-semibold leading-tight">${i.name} <span class="text-[10px] block text-slate-500 font-normal">${i.unit} (Lô:${i.hsd||'--'})</span></td>
+                            <td class="text-right py-1 align-top">${isRet?'-':''}${i.qty}</td>
+                            <td class="text-right py-1 align-top">${formatMoney(i.qty*i.price)}</td>
                         </tr>`).join('')}
                     </table>
                 </div>
-                <!-- Vùng này tự động bị đẩy sát lề đáy của tờ A6 nhờ "mt-auto" -->
-                <div class="mt-auto border-t border-dashed border-slate-600 pt-2 text-right">
+                <!-- Vùng này ép xuống sát lề dưới -->
+                <div class="mt-auto border-t border-dashed border-slate-600 pt-2 text-right shrink-0">
                     <p class="text-sm">Cộng tiền: ${formatMoney(Math.abs(record.sum))}</p>
-                    ${record.discount ? `<p class="text-red-500 text-sm">Trừ điểm: -${formatMoney(record.discount)}</p>` : ''}
-                    ${isRet && record.pointsChange < 0 ? `<p class="text-red-500 text-sm">Thu hồi: ${record.pointsChange} điểm</p>` : ''}
+                    ${record.discount ? `<p class="text-red-600 text-sm">Trừ điểm: -${formatMoney(record.discount)}</p>` : ''}
+                    ${isRet && record.pointsChange < 0 ? `<p class="text-red-600 text-sm">Thu hồi: ${record.pointsChange} điểm</p>` : ''}
                     <h3 class="font-bold text-lg mt-1 text-slate-900">${isRet?'HOÀN TRẢ':'THANH TOÁN'}: ${formatMoney(Math.abs(record.total))}</h3>
                 </div>
             `;
@@ -884,35 +883,46 @@
 
         window.closeReceiptModal = () => document.getElementById('receipt-modal').classList.add('hidden');
 
-        // HÀM IN TỐI ƯU CHO IOS
+        // HÀM IN TRỰC TIẾP TỪ TRÌNH DUYỆT (ĐÃ FIX LỖI GIẤY TRẮNG)
         window.triggerPrint = () => {
-            setTimeout(() => { window.print(); }, 150);
+            window.print();
         };
 
-        // SHARE HÓA ĐƠN QUA HTML2CANVAS (CHỤP CHÍNH XÁC BẢN ẢO A6 DỌC)
+        // SHARE HÓA ĐƠN ẢNH VÀ DOWNLOAD (TỐI ƯU iOS)
         window.shareReceipt = async () => {
-            const el = document.getElementById('print-area'); // Đổi mục tiêu thành bản in Ảo
+            const el = document.getElementById('print-area');
             try {
-                showToast('Đang tạo ảnh A6 dọc...', 'bg-indigo-600');
-                const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff' });
+                showToast('Đang tạo hóa đơn...', 'bg-indigo-600');
+                // Chụp bản in ẩn phía dưới
+                const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true });
                 canvas.toBlob(async (blob) => {
                     const file = new File([blob], `HoaDon_${Date.now()}.png`, { type: 'image/png' });
+                    // Nếu thiết bị hỗ trợ nút Share (iOS)
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                            title: 'Hóa Đơn Nhà Thuốc',
-                            files: [file]
-                        });
+                        try {
+                            await navigator.share({
+                                title: 'Hóa Đơn Nhà Thuốc',
+                                files: [file]
+                            });
+                        } catch(err) {
+                            // Bắt lỗi nếu người dùng bấm Hủy share trên iOS -> Đẩy sang tải thủ công
+                            fallbackDownload(blob);
+                        }
                     } else {
-                        // Fallback tải xuống
-                        const link = document.createElement('a');
-                        link.href = URL.createObjectURL(blob);
-                        link.download = `HoaDon_${Date.now()}.png`;
-                        link.click();
-                        showToast('Đã lưu ảnh hóa đơn!', 'bg-emerald-600');
+                        // Thiết bị không hỗ trợ share -> Tải thẳng
+                        fallbackDownload(blob);
                     }
-                });
-            } catch(e) { showToast('Lỗi tạo ảnh chia sẻ', 'bg-red-500'); }
+                }, 'image/png');
+            } catch(e) { showToast('Lỗi tạo ảnh: ' + e.message, 'bg-red-500'); }
         };
+
+        function fallbackDownload(blob) {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `HoaDon_${Date.now()}.png`;
+            link.click();
+            showToast('Đã lưu ảnh hóa đơn!', 'bg-emerald-600');
+        }
 
         // --- KHÁCH HÀNG & LỊCH SỬ ---
         window.showCustomerAdd = () => { document.getElementById('customer-add-modal').classList.remove('hidden'); document.getElementById('ca-name').value=''; document.getElementById('ca-phone').value=''; document.getElementById('ca-barcode').value=''; };
