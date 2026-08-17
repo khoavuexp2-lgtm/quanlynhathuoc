@@ -872,8 +872,9 @@
             ctx.scale(scale, scale);
 
             const bg = '#ffffff'; const textDark = '#1e293b'; const textLight = '#64748b'; const textHighlight = isRet ? '#dc2626' : '#312e81';
-            const fontReg = '14px sans-serif'; const fontBold = 'bold 14px sans-serif'; const fontSmall = '12px sans-serif';
-            const fontHeader = 'bold 22px sans-serif'; const fontTotal = 'bold 18px sans-serif';
+            // CẬP NHẬT FONT ARIAL ĐỂ TRÁNH LỖI KÝ TỰ TIẾNG VIỆT
+            const fontReg = '14px Arial, sans-serif'; const fontBold = 'bold 14px Arial, sans-serif'; const fontSmall = '12px Arial, sans-serif';
+            const fontHeader = 'bold 22px Arial, sans-serif'; const fontTotal = 'bold 18px Arial, sans-serif';
 
             ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -924,15 +925,15 @@
             exportAndShareCanvas(canvas, `HoaDon_${record.orderId}.png`);
         }
 
-        // 2. Vẽ Ảnh Thẻ Khách Hàng (QR Code Vuông)
+        // 2. Vẽ Ảnh Thẻ Khách Hàng (Sử dụng Barcode lớn & Fix lỗi Font)
         async function shareCustomerCardImage(c) {
             showToast('Đang tạo Thẻ Khách Hàng...', 'bg-emerald-600');
 
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            const scale = 3; // Nét căng 
+            const scale = 3; 
             const width = 350; 
-            const height = 500; // Thiết kế Dọc (Vertical)
+            const height = 500; 
             canvas.width = width * scale;
             canvas.height = height * scale;
             ctx.scale(scale, scale);
@@ -944,45 +945,61 @@
             // Khung viền mờ
             ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 2; ctx.strokeRect(2, 2, width-4, height-4);
 
-            // Header Tên Nhà Thuốc
-            ctx.fillStyle = '#1e3a8a'; // Xanh Navy
-            ctx.font = '900 24px sans-serif'; ctx.textAlign = 'center';
+            // Header Tên Nhà Thuốc - CẬP NHẬT FONT ARIAL CHỐNG LỖI
+            ctx.fillStyle = '#1e3a8a'; 
+            ctx.font = '900 24px Arial, sans-serif'; ctx.textAlign = 'center';
             ctx.fillText('THUỐC TÂY LAN ANH', width / 2, 50);
             
-            ctx.fillStyle = '#64748b'; // Xám
-            ctx.font = 'bold 12px sans-serif'; ctx.letterSpacing = "2px";
+            ctx.fillStyle = '#64748b'; 
+            ctx.font = 'bold 12px Arial, sans-serif'; ctx.letterSpacing = "2px";
             ctx.fillText('THẺ KHÁCH HÀNG THÂN THIẾT', width / 2, 70);
 
             drawDashedLine(ctx, 40, 90, width-40, 90);
 
             // Tên khách hàng Đỏ rực
-            ctx.fillStyle = '#dc2626'; // Đỏ tươi
-            ctx.font = '900 28px sans-serif';
+            ctx.fillStyle = '#dc2626'; 
+            ctx.font = '900 28px Arial, sans-serif';
             ctx.fillText(c.name.toUpperCase(), width / 2, 130);
 
             // Số điện thoại
-            ctx.fillStyle = '#0f172a'; // Đen xám
-            ctx.font = 'bold 18px sans-serif';
+            ctx.fillStyle = '#0f172a'; 
+            ctx.font = 'bold 18px Arial, sans-serif';
             ctx.fillText(`SĐT: ${c.phone || '---'}`, width / 2, 160);
 
-            // TẠO QR CODE BẰNG DATA URL ĐỂ ĐẢM BẢO CHẮC CHẮN VẼ ĐƯỢC LÊN CANVAS
+            // CHUYỂN SANG DÙNG BARCODE (MÃ VẠCH SỌC NGANG) ĐỂ ĐẢM BẢO HOẠT ĐỘNG 100%
             let barcodeValue = c.barcode || c.phone || c.id.substring(0,8);
             try {
-                let qrDataUrl = await QRCode.toDataURL(barcodeValue, { 
-                    margin: 0, width: 220, color: { dark: '#000000', light: '#ffffff' } 
+                const barcodeCanvas = document.createElement('canvas');
+                JsBarcode(barcodeCanvas, barcodeValue, { 
+                    format: "CODE128", 
+                    displayValue: true, 
+                    height: 90, 
+                    width: 3,
+                    fontSize: 18, 
+                    margin: 0, 
+                    background: '#ffffff',
+                    lineColor: '#000000'
                 });
                 
-                const img = new Image();
-                img.src = qrDataUrl;
-                await new Promise(r => img.onload = r); // Đợi load xong ảnh ảo
+                let bcWidth = barcodeCanvas.width;
+                let bcHeight = barcodeCanvas.height;
+                let drawWidth = bcWidth;
+                let drawHeight = bcHeight;
                 
-                const bcSize = 200;
-                ctx.drawImage(img, (width - bcSize) / 2, 190, bcSize, bcSize);
-            } catch (e) { console.error('Lỗi QR Code', e); }
+                // Tự động thu nhỏ nếu mã vạch quá dài so với chiều ngang thẻ
+                if(drawWidth > width - 60) {
+                    let ratio = (width - 60) / drawWidth;
+                    drawWidth = drawWidth * ratio;
+                    drawHeight = drawHeight * ratio;
+                }
+                
+                // Căn giữa mã vạch
+                ctx.drawImage(barcodeCanvas, (width - drawWidth) / 2, 210, drawWidth, drawHeight);
+            } catch (e) { console.error('Lỗi Barcode', e); }
 
             // Lời cảm ơn bự dưới cùng
-            ctx.fillStyle = '#2563eb'; // Xanh Blue
-            ctx.font = 'bold italic 18px sans-serif';
+            ctx.fillStyle = '#2563eb'; 
+            ctx.font = 'bold italic 18px Arial, sans-serif';
             ctx.fillText('Cảm ơn quý khách đã tin tưởng', width / 2, 430);
             ctx.fillText('và ủng hộ nhà thuốc!', width / 2, 455);
 
