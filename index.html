@@ -1333,17 +1333,38 @@
             document.getElementById('scanner-modal').classList.remove('hidden'); 
             document.getElementById('scanner-modal').classList.add('flex');
             
-            html5QrcodeScanner = new Html5Qrcode("reader");
-            // Tối ưu cho quét gần: fps cao, qrbox nhỏ hơn, aspectRatio 1.0
-            // Cố gắng sử dụng camera sau và bật đèn flash nếu có thể (torch: true)
-            const config = { fps: 30, qrbox: { width: 200, height: 200 }, aspectRatio: 1.0 };
+            // Xóa rác bộ nhớ nếu camera bị treo trước đó
+            if (html5QrcodeScanner) {
+                try { html5QrcodeScanner.clear(); } catch(e){}
+            }
             
-            html5QrcodeScanner.start({ facingMode: "environment", torch: true }, config, onScanSuccess)
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            
+            // 1. Tối ưu Khung quét động: Mở rộng 80% màn hình giúp bắt mã cực nhạy từ mọi góc độ
+            const config = { 
+                fps: 30, 
+                qrbox: (videoWidth, videoHeight) => {
+                    let minEdge = Math.min(videoWidth, videoHeight);
+                    return { width: minEdge * 0.8, height: minEdge * 0.8 };
+                },
+                aspectRatio: 1.0 
+            };
+            
+            // 2. Yêu cầu luồng Video HD: Điểm mấu chốt giúp đọc mã vạch sắc nét ở khoảng cách xa (20-30cm)
+            // Giảm thiểu tình trạng camera điện thoại bị mất nét do cố zoom Macro
+            const cameraConstraints = { 
+                facingMode: "environment",
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                advanced: [{ focusMode: "continuous" }]
+            };
+            
+            html5QrcodeScanner.start(cameraConstraints, config, onScanSuccess)
             .catch(e => { 
-                // Nếu lỗi (ví dụ không có torch), thử lại với cấu hình cơ bản
-                html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+                // Dự phòng an toàn 100%: Nếu điện thoại đời cũ không hỗ trợ HD, tự động tụt về mức an toàn
+                html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 30, qrbox: { width: 250, height: 250 } }, onScanSuccess)
                 .catch(err => {
-                    showErrorDetails("Lỗi Camera", err.message); 
+                    showErrorDetails("Lỗi Camera", "Vui lòng cấp quyền Camera trong cài đặt và tải lại trang!"); 
                     stopScanner(); 
                 });
             });
@@ -1352,7 +1373,17 @@
         window.stopScanner = () => {
             document.getElementById('scanner-modal').classList.add('hidden'); 
             document.getElementById('scanner-modal').classList.remove('flex');
-            if(html5QrcodeScanner) { html5QrcodeScanner.stop().then(() => html5QrcodeScanner.clear()).catch(()=>{}); html5QrcodeScanner = null; }
+            if(html5QrcodeScanner) { 
+                html5QrcodeScanner.stop()
+                .then(() => {
+                    html5QrcodeScanner.clear();
+                    html5QrcodeScanner = null;
+                })
+                .catch((e) => {
+                    console.log("Lỗi tắt", e);
+                    html5QrcodeScanner = null;
+                }); 
+            }
         };
         
         function onScanSuccess(decoded) {
