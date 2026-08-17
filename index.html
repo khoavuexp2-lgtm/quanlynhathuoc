@@ -21,8 +21,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- JsBarcode -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <!-- Html2Canvas (Để chụp ảnh Hóa đơn) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
         body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; background-color: #f8fafc; }
@@ -33,13 +31,6 @@
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
         .return-mode-bg { background-color: #fff7ed !important; border-color: #fdba74 !important; }
-        
-        @media print {
-            body * { visibility: hidden; }
-            #print-area, #print-area * { visibility: visible; }
-            #print-area { position: absolute; left: 0; top: 0; width: 148mm; padding: 5mm; font-family: monospace; color: #000; background: #fff; }
-            @page { size: A5; margin: 0; }
-        }
     </style>
 </head>
 <body class="text-slate-800 font-sans h-[100dvh] flex flex-col overflow-hidden">
@@ -302,10 +293,9 @@
                     <div class="p-4 flex-1 overflow-y-auto text-sm bg-white" id="receipt-preview-content">
                         <!-- Nội dung bill đổ vào đây -->
                     </div>
-                    <div class="p-3 border-t flex gap-2 flex-wrap">
-                        <button onclick="closeReceiptModal()" class="flex-1 py-2 bg-slate-200 font-bold rounded-lg text-slate-700 text-sm">Đóng</button>
-                        <button onclick="shareReceipt()" class="flex-1 py-2 bg-green-500 font-bold rounded-lg text-white text-sm"><i class="fa-solid fa-share-nodes"></i> Chia sẻ (Zalo/Lưu ảnh)</button>
-                        <button onclick="window.print()" class="w-full mt-2 py-2 bg-indigo-600 font-bold rounded-lg text-white text-sm"><i class="fa-solid fa-print"></i> In Bill (A5/Web)</button>
+                    <div class="p-3 border-t flex gap-2">
+                        <button onclick="closeReceiptModal()" class="flex-1 py-3 bg-slate-200 font-bold rounded-xl text-slate-700">Đóng</button>
+                        <button onclick="shareReceipt()" class="flex-[2] py-3 bg-indigo-600 font-bold rounded-xl text-white shadow-lg active:scale-95 flex items-center justify-center gap-2"><i class="fa-solid fa-share-nodes"></i> Chia sẻ (Zalo/Lưu ảnh)</button>
                     </div>
                 </div>
             </div>
@@ -419,9 +409,6 @@
         </nav>
     </div>
 
-    <!-- KHU VỰC IN ẨN -->
-    <div id="print-area" class="hidden"></div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -457,6 +444,7 @@
         let revenueChart = null;
         let currentFilterKho = 'all';
         let isReturnMode = false; // CỜ CHẾ ĐỘ TRẢ HÀNG
+        let currentReceiptRecord = null; // Lưu record hóa đơn đang xem
 
         // --- AUTH ---
         document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -819,8 +807,9 @@
             } catch (e) { showErrorDetails("Lỗi Thanh Toán", e.message); }
         };
 
-        // --- HÓA ĐƠN & CHIA SẺ ---
+        // --- HÓA ĐƠN & CHIA SẺ (CANVAS A6 DỌC) ---
         window.showReceipt = (record) => {
+            currentReceiptRecord = record;
             let isRet = record.type === 'return';
             
             // 1. Bản Preview trên App (Thu gọn cho màn hình điện thoại)
@@ -848,80 +837,193 @@
                 </div>
             `;
             document.getElementById('receipt-preview-content').innerHTML = previewHtml;
-            
-            // 2. Bản in Ảo A6 Dọc (Cho Web Print & Share)
-            let printHtml = `
-                <div class="text-center mb-2">
-                    <h2 class="font-bold text-xl">${isRet ? 'PHIẾU TRẢ HÀNG' : 'HÓA ĐƠN BÁN HÀNG'}</h2>
-                    <p class="text-sm text-slate-500">${dayjs(record.timestamp).format('DD/MM/YYYY HH:mm')} - ${record.orderId}</p>
-                    <p class="text-sm font-bold mt-1">Khách: ${record.customer}</p>
-                </div>
-                <div class="flex-1 overflow-hidden">
-                    <table class="w-full text-sm">
-                        <tr class="border-b border-dashed border-slate-400">
-                            <th class="text-left py-1 w-1/2">SP</th><th class="text-right py-1">SL</th><th class="text-right py-1">Tiền</th>
-                        </tr>
-                        ${record.items.map(i => `
-                        <tr>
-                            <td class="py-1 pr-1 font-semibold leading-tight">${i.name} <span class="text-[10px] block text-slate-500 font-normal">${i.unit} (Lô:${i.hsd||'--'})</span></td>
-                            <td class="text-right py-1 align-top">${isRet?'-':''}${i.qty}</td>
-                            <td class="text-right py-1 align-top">${formatMoney(i.qty*i.price)}</td>
-                        </tr>`).join('')}
-                    </table>
-                </div>
-                <!-- Vùng này ép xuống sát lề dưới -->
-                <div class="mt-auto border-t border-dashed border-slate-600 pt-2 text-right shrink-0">
-                    <p class="text-sm">Cộng tiền: ${formatMoney(Math.abs(record.sum))}</p>
-                    ${record.discount ? `<p class="text-red-600 text-sm">Trừ điểm: -${formatMoney(record.discount)}</p>` : ''}
-                    ${isRet && record.pointsChange < 0 ? `<p class="text-red-600 text-sm">Thu hồi: ${record.pointsChange} điểm</p>` : ''}
-                    <h3 class="font-bold text-lg mt-1 text-slate-900">${isRet?'HOÀN TRẢ':'THANH TOÁN'}: ${formatMoney(Math.abs(record.total))}</h3>
-                </div>
-            `;
-            document.getElementById('print-area').innerHTML = printHtml;
             document.getElementById('receipt-modal').classList.remove('hidden');
         };
 
         window.closeReceiptModal = () => document.getElementById('receipt-modal').classList.add('hidden');
 
-        // HÀM IN TRỰC TIẾP TỪ TRÌNH DUYỆT (ĐÃ FIX LỖI GIẤY TRẮNG)
-        window.triggerPrint = () => {
-            window.print();
-        };
-
-        // SHARE HÓA ĐƠN ẢNH VÀ DOWNLOAD (TỐI ƯU iOS)
+        // SHARE HÓA ĐƠN ẢNH (VẼ CANVAS TRỰC TIẾP)
         window.shareReceipt = async () => {
-            const el = document.getElementById('print-area');
+            if (!currentReceiptRecord) return;
+            const record = currentReceiptRecord;
+            const isRet = record.type === 'return';
+            showToast('Đang tạo hóa đơn...', 'bg-indigo-600');
+
+            // Cấu hình Canvas A6 dọc (105mm x 148mm) ở 300dpi
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const scale = 2; // Tăng độ phân giải
+            canvas.width = 420 * scale; // ~105mm
+            canvas.height = 595 * scale; // ~148mm
+            ctx.scale(scale, scale);
+
+            // Màu sắc & Font
+            const bg = '#ffffff';
+            const textDark = '#1e293b';
+            const textLight = '#64748b';
+            const textHighlight = isRet ? '#dc2626' : '#312e81'; // Đỏ hoặc Xanh đậm
+            const fontReg = '14px sans-serif';
+            const fontBold = 'bold 14px sans-serif';
+            const fontSmall = '12px sans-serif';
+            const fontHeader = 'bold 22px sans-serif';
+            const fontTotal = 'bold 18px sans-serif';
+
+            // Vẽ nền trắng
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            let y = 40; // Tọa độ Y bắt đầu
+            const marginX = 30;
+            const contentWidth = 420 - marginX * 2;
+
+            // Header
+            ctx.fillStyle = textHighlight;
+            ctx.font = fontHeader;
+            ctx.textAlign = 'center';
+            ctx.fillText(isRet ? 'PHIẾU TRẢ HÀNG' : 'HÓA ĐƠN BÁN HÀNG', 210, y);
+            y += 25;
+
+            ctx.fillStyle = textLight;
+            ctx.font = fontSmall;
+            ctx.fillText(`${dayjs(record.timestamp).format('DD/MM/YYYY HH:mm')} - ${record.orderId}`, 210, y);
+            y += 20;
+
+            ctx.fillStyle = textDark;
+            ctx.font = fontBold;
+            ctx.fillText(`Khách: ${record.customer}`, 210, y);
+            y += 30;
+
+            // Đường kẻ
+            drawDashedLine(ctx, marginX, y, 420 - marginX, y);
+            y += 20;
+
+            // Tiêu đề bảng
+            ctx.fillStyle = textDark;
+            ctx.font = fontBold;
+            ctx.textAlign = 'left';
+            ctx.fillText('SP', marginX, y);
+            ctx.textAlign = 'right';
+            ctx.fillText('SL', 300, y);
+            ctx.fillText('Tiền', 420 - marginX, y);
+            y += 10;
+            drawDashedLine(ctx, marginX, y, 420 - marginX, y);
+            y += 20;
+
+            // Danh sách hàng hóa
+            ctx.font = fontReg;
+            record.items.forEach(i => {
+                // Tên SP (có thể xuống dòng)
+                ctx.textAlign = 'left';
+                ctx.fillStyle = textDark;
+                const nameLines = wrapText(ctx, i.name, marginX, y, 220, 18);
+                y = nameLines.y;
+                
+                ctx.fillStyle = textLight;
+                ctx.font = fontSmall;
+                ctx.fillText(`${i.unit} (Lô:${i.hsd||'--'})`, marginX, y);
+                ctx.font = fontReg; // Reset font
+
+                // SL & Tiền
+                ctx.textAlign = 'right';
+                ctx.fillStyle = textDark;
+                // Reset Y về dòng đầu tiên của tên SP để căn thẳng hàng
+                let currentY = nameLines.startY;
+                ctx.fillText(`${isRet?'-':''}${i.qty}`, 300, currentY);
+                ctx.fillText(formatMoney(i.qty * i.price), 420 - marginX, currentY);
+                
+                y += 30; // Khoảng cách giữa các món
+            });
+
+            // Đẩy phần tổng xuống dưới cùng
+            y = Math.max(y, 595 - 150); 
+
+            // Đường kẻ tổng
+            drawDashedLine(ctx, marginX, y, 420 - marginX, y);
+            y += 25;
+
+            // Tổng tiền
+            ctx.textAlign = 'right';
+            ctx.fillStyle = textDark;
+            ctx.font = fontReg;
+            ctx.fillText(`Cộng tiền: ${formatMoney(Math.abs(record.sum))}`, 420 - marginX, y);
+            y += 20;
+
+            if (record.discount) {
+                ctx.fillStyle = '#dc2626'; // Màu đỏ
+                ctx.fillText(`Trừ điểm: -${formatMoney(record.discount)}`, 420 - marginX, y);
+                y += 20;
+            }
+            if (isRet && record.pointsChange < 0) {
+                ctx.fillStyle = '#dc2626';
+                ctx.fillText(`Thu hồi: ${record.pointsChange} điểm`, 420 - marginX, y);
+                y += 20;
+            }
+
+            // Thành tiền cuối cùng
+            y += 10;
+            ctx.fillStyle = textHighlight;
+            ctx.font = fontTotal;
+            ctx.fillText(`${isRet?'HOÀN TRẢ':'THANH TOÁN'}: ${formatMoney(Math.abs(record.total))}`, 420 - marginX, y);
+            y += 40;
+
+            // Mã vạch đơn hàng
             try {
-                showToast('Đang tạo hóa đơn...', 'bg-indigo-600');
-                // Chụp bản in ẩn phía dưới
-                const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true });
-                canvas.toBlob(async (blob) => {
-                    const file = new File([blob], `HoaDon_${Date.now()}.png`, { type: 'image/png' });
-                    // Nếu thiết bị hỗ trợ nút Share (iOS)
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        try {
-                            await navigator.share({
-                                title: 'Hóa Đơn Nhà Thuốc',
-                                files: [file]
-                            });
-                        } catch(err) {
-                            // Bắt lỗi nếu người dùng bấm Hủy share trên iOS -> Đẩy sang tải thủ công
-                            fallbackDownload(blob);
-                        }
-                    } else {
-                        // Thiết bị không hỗ trợ share -> Tải thẳng
-                        fallbackDownload(blob);
-                    }
-                }, 'image/png');
-            } catch(e) { showToast('Lỗi tạo ảnh: ' + e.message, 'bg-red-500'); }
+                const barcodeCanvas = document.createElement('canvas');
+                JsBarcode(barcodeCanvas, record.orderId, {
+                    format: "CODE128", displayValue: true, height: 40, fontSize: 14, margin: 0, background: bg
+                });
+                const bcWidth = barcodeCanvas.width / scale;
+                const bcHeight = barcodeCanvas.height / scale;
+                ctx.drawImage(barcodeCanvas, (420 - bcWidth) / 2, y, bcWidth, bcHeight);
+            } catch (e) { console.error('Barcode err', e); }
+
+            // Xuất ảnh và Chia sẻ
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], `HoaDon_${record.orderId}.png`, { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try { await navigator.share({ files: [file] }); } catch (err) { fallbackDownload(blob, record.orderId); }
+                } else { fallbackDownload(blob, record.orderId); }
+            }, 'image/png', 1.0);
         };
 
-        function fallbackDownload(blob) {
+        function fallbackDownload(blob, orderId) {
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `HoaDon_${Date.now()}.png`;
+            link.download = `HoaDon_${orderId}.png`;
             link.click();
             showToast('Đã lưu ảnh hóa đơn!', 'bg-emerald-600');
+        }
+
+        // Hàm vẽ đường nét đứt
+        function drawDashedLine(ctx, x1, y1, x2, y2, dash = [5, 3]) {
+            ctx.beginPath();
+            ctx.setLineDash(dash);
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Hàm xuống dòng văn bản
+        function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+            const words = text.split(' ');
+            let line = '';
+            let startY = y;
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                const testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
+                    ctx.fillText(line, x, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line, x, y);
+            return { y: y + lineHeight, startY: startY };
         }
 
         // --- KHÁCH HÀNG & LỊCH SỬ ---
@@ -1232,9 +1334,19 @@
             document.getElementById('scanner-modal').classList.add('flex');
             
             html5QrcodeScanner = new Html5Qrcode("reader");
-            // Tốc độ cao fps 30
-            html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 30, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 }, onScanSuccess)
-            .catch(e => { showErrorDetails("Lỗi Camera", e.message); stopScanner(); });
+            // Tối ưu cho quét gần: fps cao, qrbox nhỏ hơn, aspectRatio 1.0
+            // Cố gắng sử dụng camera sau và bật đèn flash nếu có thể (torch: true)
+            const config = { fps: 30, qrbox: { width: 200, height: 200 }, aspectRatio: 1.0 };
+            
+            html5QrcodeScanner.start({ facingMode: "environment", torch: true }, config, onScanSuccess)
+            .catch(e => { 
+                // Nếu lỗi (ví dụ không có torch), thử lại với cấu hình cơ bản
+                html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+                .catch(err => {
+                    showErrorDetails("Lỗi Camera", err.message); 
+                    stopScanner(); 
+                });
+            });
         };
         
         window.stopScanner = () => {
