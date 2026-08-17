@@ -822,7 +822,9 @@
         // --- HÓA ĐƠN & CHIA SẺ ---
         window.showReceipt = (record) => {
             let isRet = record.type === 'return';
-            let html = `
+            
+            // 1. Bản Preview trên App (cuộn tự do, giao diện cũ)
+            let previewHtml = `
                 <div class="text-center mb-3" style="font-family: monospace;">
                     <h2 class="font-bold text-lg">${isRet ? 'PHIẾU TRẢ HÀNG' : 'HÓA ĐƠN BÁN HÀNG'}</h2>
                     <p class="text-xs text-slate-500">${dayjs(record.timestamp).format('DD/MM/YYYY HH:mm')} - ${record.orderId}</p>
@@ -846,10 +848,37 @@
                     <h3 class="font-bold text-base mt-1 text-slate-900">${isRet?'HOÀN TRẢ':'THANH TOÁN'}: ${formatMoney(Math.abs(record.total))}</h3>
                 </div>
             `;
-            document.getElementById('receipt-preview-content').innerHTML = html;
+            document.getElementById('receipt-preview-content').innerHTML = previewHtml;
             
-            // Render bản in thực tế
-            document.getElementById('print-area').innerHTML = html;
+            // 2. Bản in ảo (Flexbox ép tổng tiền xuống đáy, cố định kích thước A6 dọc)
+            let printHtml = `
+                <div class="text-center mb-3">
+                    <h2 class="font-bold text-xl">${isRet ? 'PHIẾU TRẢ HÀNG' : 'HÓA ĐƠN BÁN HÀNG'}</h2>
+                    <p class="text-sm text-slate-500">${dayjs(record.timestamp).format('DD/MM/YYYY HH:mm')} - ${record.orderId}</p>
+                    <p class="text-sm font-bold mt-1">Khách: ${record.customer}</p>
+                </div>
+                <div class="flex-1">
+                    <table class="w-full text-sm">
+                        <tr class="border-b border-dashed border-slate-400">
+                            <th class="text-left py-1">SP</th><th class="text-right py-1">SL</th><th class="text-right py-1">Tiền</th>
+                        </tr>
+                        ${record.items.map(i => `
+                        <tr>
+                            <td class="py-1 pr-1 font-semibold">${i.name} <span class="text-[11px] block text-slate-500 font-normal">${i.unit} (Lô:${i.hsd||'--'})</span></td>
+                            <td class="text-right py-1" style="vertical-align: top;">${isRet?'-':''}${i.qty}</td>
+                            <td class="text-right py-1" style="vertical-align: top;">${formatMoney(i.qty*i.price)}</td>
+                        </tr>`).join('')}
+                    </table>
+                </div>
+                <!-- Vùng này tự động bị đẩy sát lề đáy của tờ A6 nhờ "mt-auto" -->
+                <div class="mt-auto border-t border-dashed border-slate-600 pt-2 text-right">
+                    <p class="text-sm">Cộng tiền: ${formatMoney(Math.abs(record.sum))}</p>
+                    ${record.discount ? `<p class="text-red-500 text-sm">Trừ điểm: -${formatMoney(record.discount)}</p>` : ''}
+                    ${isRet && record.pointsChange < 0 ? `<p class="text-red-500 text-sm">Thu hồi: ${record.pointsChange} điểm</p>` : ''}
+                    <h3 class="font-bold text-lg mt-1 text-slate-900">${isRet?'HOÀN TRẢ':'THANH TOÁN'}: ${formatMoney(Math.abs(record.total))}</h3>
+                </div>
+            `;
+            document.getElementById('print-area').innerHTML = printHtml;
             document.getElementById('receipt-modal').classList.remove('hidden');
         };
 
@@ -857,17 +886,14 @@
 
         // HÀM IN TỐI ƯU CHO IOS
         window.triggerPrint = () => {
-            // Delay 1 chút để DOM iOS kịp render bản in A6 trước khi gọi hộp thoại
-            setTimeout(() => {
-                window.print();
-            }, 150);
+            setTimeout(() => { window.print(); }, 150);
         };
 
-        // SHARE HÓA ĐƠN QUA HTML2CANVAS
+        // SHARE HÓA ĐƠN QUA HTML2CANVAS (CHỤP CHÍNH XÁC BẢN ẢO A6 DỌC)
         window.shareReceipt = async () => {
-            const el = document.getElementById('receipt-preview-content');
+            const el = document.getElementById('print-area'); // Đổi mục tiêu thành bản in Ảo
             try {
-                showToast('Đang tạo ảnh...', 'bg-indigo-600');
+                showToast('Đang tạo ảnh A6 dọc...', 'bg-indigo-600');
                 const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff' });
                 canvas.toBlob(async (blob) => {
                     const file = new File([blob], `HoaDon_${Date.now()}.png`, { type: 'image/png' });
