@@ -925,7 +925,8 @@
             currentScanContext = context;
             document.getElementById('scanner-modal').classList.remove('hidden'); document.getElementById('scanner-modal').classList.add('flex');
             html5QrcodeScanner = new Html5Qrcode("reader");
-            html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 }, onScanSuccess).catch(e => { showToast("Không mở được Camera!", "bg-red-500"); stopScanner(); });
+            // Tăng fps lên 30 để quét siêu tốc
+            html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 30, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 }, onScanSuccess).catch(e => { showToast("Không mở được Camera!", "bg-red-500"); stopScanner(); });
         };
         window.stopScanner = () => {
             document.getElementById('scanner-modal').classList.add('hidden'); document.getElementById('scanner-modal').classList.remove('flex');
