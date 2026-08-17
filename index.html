@@ -21,6 +21,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- JsBarcode -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <!-- QRCode -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
     <style>
         body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; background-color: #f8fafc; }
@@ -31,34 +33,6 @@
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
         .return-mode-bg { background-color: #fff7ed !important; border-color: #fdba74 !important; }
-        
-        /* Cấu hình bản in A6 ảo luôn nằm ẩn dưới giao diện */
-        #print-area {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 105mm;
-            min-height: 148mm;
-            background-color: white;
-            z-index: -100;
-            opacity: 0.01;
-            pointer-events: none;
-            overflow: hidden;
-        }
-
-        /* Khi trình duyệt gọi lệnh in, ẩn toàn bộ UI và chỉ hiện #print-area chuẩn A6 */
-        @media print {
-            @page { margin: 0; size: 105mm 148mm; }
-            body > *:not(#print-area) { display: none !important; }
-            #print-area { 
-                display: block !important; 
-                position: static !important;
-                z-index: 9999 !important;
-                opacity: 1 !important;
-                width: 105mm !important;
-                height: 148mm !important;
-            }
-        }
     </style>
 </head>
 <body class="text-slate-800 font-sans h-[100dvh] flex flex-col overflow-hidden">
@@ -116,7 +90,7 @@
                 <div class="relative z-30 mb-2 flex gap-1">
                     <div class="relative flex-1">
                         <i class="fa-solid fa-user-tag absolute left-2.5 top-2.5 text-slate-400 text-sm"></i>
-                        <input type="text" id="pos-customer-search" placeholder="Mã KH hoặc Tên..." class="w-full pl-8 pr-2 py-2 rounded-lg border border-slate-200 shadow-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white text-sm" autocomplete="off">
+                        <input type="text" id="pos-customer-search" placeholder="Mã KH, Tên, Mã Hóa Đơn..." class="w-full pl-8 pr-2 py-2 rounded-lg border border-slate-200 shadow-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white text-sm" autocomplete="off">
                     </div>
                     <button onclick="startScanner('pos-customer')" class="bg-indigo-100 text-indigo-700 px-3 rounded-lg"><i class="fa-solid fa-qrcode"></i></button>
                     <button onclick="showCustomerAdd()" class="bg-indigo-600 text-white px-3 rounded-lg"><i class="fa-solid fa-plus"></i></button>
@@ -170,7 +144,7 @@
                             <span class="font-bold text-xs text-slate-600" id="pos-change-text">Thừa: 0</span>
                         </div>
                     </div>
-                    <button onclick="checkout()" id="btn-checkout" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+                    <button onclick="checkout()" id="btn-checkout" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-lg">
                         <i class="fa-solid fa-print"></i> THANH TOÁN
                     </button>
                 </div>
@@ -178,6 +152,7 @@
 
             <!-- TAB: NHẬP KHO -->
             <div id="tab-nhapkho" class="tab-content flex-col h-full safe-bottom p-3">
+                
                 <div class="mt-0 mb-4">
                     <h3 class="font-bold text-slate-700 text-sm mb-2"><i class="fa-solid fa-truck"></i> Đơn Đang Chờ (Từ Dự Trù)</h3>
                     <div id="pending-imports-list" class="space-y-2 max-h-32 overflow-y-auto hide-scroll"></div>
@@ -310,19 +285,19 @@
                 </div>
             </div>
             
-            <!-- MODAL HOÁ ĐƠN & CHIA SẺ -->
+            <!-- MODAL HOÁ ĐƠN / LỊCH SỬ CHIA SẺ -->
             <div id="receipt-modal" class="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 hidden">
                 <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
                     <div class="p-3 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
-                        <h3 class="font-bold">Xem Hóa Đơn</h3>
+                        <h3 class="font-bold">Hóa Đơn / Thẻ KH</h3>
                         <button onclick="closeReceiptModal()" class="text-slate-400 p-1"><i class="fa-solid fa-times text-xl"></i></button>
                     </div>
                     <div class="p-4 flex-1 overflow-y-auto text-sm bg-white" id="receipt-preview-content">
-                        <!-- Nội dung bill đổ vào đây -->
+                        <!-- Nội dung bill hoặc danh sách lịch sử đổ vào đây -->
                     </div>
                     <div class="p-3 border-t flex gap-2">
                         <button onclick="closeReceiptModal()" class="flex-1 py-3 bg-slate-200 font-bold rounded-xl text-slate-700">Đóng</button>
-                        <button id="btn-share-modal" onclick="shareReceipt()" class="flex-[2] py-3 bg-indigo-600 font-bold rounded-xl text-white shadow-lg active:scale-95 flex items-center justify-center gap-2"><i class="fa-solid fa-share-nodes"></i> Chia sẻ (Zalo/Lưu ảnh)</button>
+                        <button onclick="shareReceipt()" id="btn-share-receipt" class="flex-[2] py-3 bg-indigo-600 font-bold rounded-xl text-white shadow-lg active:scale-95 flex items-center justify-center gap-2"><i class="fa-solid fa-share-nodes"></i> Chia sẻ</button>
                     </div>
                 </div>
             </div>
@@ -388,23 +363,17 @@
                 </div>
             </div>
 
-            <!-- MODAL QUÉT MÃ CAMERA -->
+            <!-- MODAL QUÉT MÃ CAMERA (FIX iOS Tối ưu không giật màn hình) -->
             <div id="scanner-modal" class="fixed inset-0 bg-black z-[150] flex-col hidden transition-opacity">
-                <!-- Tiêu đề mờ ở trên -->
-                <div class="absolute top-0 left-0 w-full p-4 bg-gradient-to-b from-black/80 to-transparent z-[160] safe-top flex justify-center pointer-events-none">
-                    <h3 class="font-bold text-white text-lg drop-shadow-md"><i class="fa-solid fa-camera"></i> Đưa mã vào khung</h3>
-                </div>
-                
-                <!-- Khu vực camera (Full screen, tự do) -->
-                <div class="flex-1 w-full h-full flex items-center justify-center relative bg-black">
-                    <div id="reader" class="w-full max-w-md bg-black relative"></div>
-                </div>
-
-                <!-- Nút đóng to rõ -->
+                <!-- Thanh công cụ Đóng nổi phía dưới -->
                 <div class="absolute bottom-12 left-0 w-full flex justify-center z-[200] pb-safe pointer-events-auto">
                     <button onclick="stopScanner()" class="bg-red-600 text-white font-extrabold px-8 py-4 rounded-full shadow-[0_0_20px_rgba(220,38,38,0.5)] active:scale-95 transition-transform flex items-center gap-2 text-lg border-2 border-red-400">
                         <i class="fa-solid fa-xmark text-xl"></i> ĐÓNG CAMERA
                     </button>
+                </div>
+                <!-- Container chứa video toàn màn hình -->
+                <div class="flex-1 w-full h-full flex items-center justify-center relative bg-black">
+                    <div id="reader" class="w-full h-full object-cover"></div>
                 </div>
             </div>
 
@@ -434,15 +403,13 @@
             </div>
         </nav>
     </div>
-    
-    <!-- KHU VỰC IN ẢO -->
-    <div id="print-area"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, updateDoc, doc, setDoc, deleteDoc, query, orderBy, where, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+        // FIREBASE CỦA BẠN (Đã fix lỗi thiếu appId)
         const firebaseConfig = {
             apiKey: "AIzaSyA3BTAfXaLg2GeXgyxewlW4uIU69ngc_Is",
             authDomain: "quanly-nhathuoc.firebaseapp.com",
@@ -471,8 +438,8 @@
         let currentScanContext = '';
         let revenueChart = null;
         let currentFilterKho = 'all';
-        let isReturnMode = false;
-        let currentReceiptRecord = null;
+        let isReturnMode = false; // CỜ CHẾ ĐỘ TRẢ HÀNG
+        let currentReceiptRecord = null; // Lưu record hóa đơn đang xem
 
         // --- AUTH ---
         document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -510,13 +477,16 @@
             }
         }
 
+        // --- FIREBASE LISTENERS ---
         function initFirebaseListeners() {
+            // Lắng nghe Kho
             onSnapshot(collection(db, "public_products"), (snap) => {
                 products = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 fuseProduct = new Fuse(products, { keys: ['name', 'barcode'], threshold: 0.3 });
                 renderInventory();
             }, e => showErrorDetails("Lỗi tải Kho", e.message));
 
+            // Lắng nghe Khách Hàng
             onSnapshot(query(collection(db, "public_customers"), orderBy("last_purchase", "desc")), (snap) => {
                 customers = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 fuseCustomer = new Fuse(customers, { keys: ['name', 'phone', 'barcode'], threshold: 0.3 });
@@ -528,6 +498,7 @@
             onSnapshot(collection(db, "public_pending_imports"), snap => { pendingImports = snap.docs.map(d => ({id: d.id, ...d.data()})); renderPendingImports(); });
             onSnapshot(doc(db, "public_settings", "config"), doc => { if(doc.exists()) { settings = doc.data(); document.getElementById('adm-rule-amt').value = settings.rule_amt; document.getElementById('adm-rule-val').value = settings.rule_val; } });
             
+            // Lấy History 7 ngày
             const d7 = Date.now() - 7*24*60*60*1000;
             onSnapshot(query(collection(db, "public_history"), where("timestamp", ">", d7)), snap => {
                 historyData = snap.docs.map(d => ({id: d.id, ...d.data()})); 
@@ -550,11 +521,14 @@
             document.querySelector(`.nav-btn[data-tab="${tabId}"]`).classList.add('text-indigo-700');
             document.querySelector(`.nav-btn[data-tab="${tabId}"]`).classList.remove('text-slate-400');
             document.getElementById('header-title').innerText = title;
-            if(html5QrcodeScanner) stopScanner();
+            if(html5QrcodeScanner) stopScanner(); // Tự tắt cam khi chuyển tab
+            
+            // Ẩn/Hiện nút Toggle Bán hàng
             document.getElementById('mode-toggle-container').style.display = tabId === 'banhang' ? 'flex' : 'none';
         };
         window.formatMoney = (amt) => new Intl.NumberFormat('vi-VN').format(amt || 0);
 
+        // --- CHẾ ĐỘ BÁN / TRẢ HÀNG ---
         window.toggleReturnMode = () => {
             isReturnMode = !isReturnMode;
             const slider = document.getElementById('mode-slider');
@@ -581,6 +555,7 @@
             cart = []; renderCart();
         };
 
+        // --- TÍNH TOÁN ĐƠN VỊ & TỒN KHO ---
         function getPriceByLevel(p, level) { return level == 1 ? p.p1 : (level == 2 ? p.p2 : p.p3); }
         function getUnitNameByLevel(p, level) { return level == 1 ? (p.u1||'Hộp') : (level == 2 ? (p.u2||'Vỉ') : (p.u3||'Viên')); }
         function getQtyMultiplier(p, level) {
@@ -610,16 +585,28 @@
             return d.isValid() && d.diff(dayjs(), 'month') <= 3;
         }
 
+        // --- GỢI Ý (FUZZY SEARCH REALTIME) ---
         window.handleSuggest = (inpId, divId, dataType, renderCb) => {
             let v = document.getElementById(inpId).value.trim();
             let div = document.getElementById(divId);
             if(!v) { div.classList.add('hidden'); return; }
-            let fuseObj = (dataType === 'customer') ? new Fuse(customers, { keys: ['name', 'phone', 'barcode'], threshold: 0.3 }) : new Fuse(products, { keys: ['name', 'barcode'], threshold: 0.3 });
-            let res = fuseObj.search(v).slice(0, 10).map(x => x.item);
+            let res = [];
+            // Đối với KH: Nếu nhập mã Hóa Đơn (bắt đầu bằng HD hoặc TH) thì không search fuzzy mà báo kết quả trực tiếp nếu có
+            if (dataType === 'customer' && (v.toUpperCase().startsWith('HD') || v.toUpperCase().startsWith('TH'))) {
+                let invoice = historyData.find(x => x.orderId.toUpperCase() === v.toUpperCase());
+                if(invoice && invoice.customerId) {
+                    let cust = customers.find(x => x.id === invoice.customerId);
+                    if (cust) res = [cust];
+                }
+            } else {
+                let fuseObj = (dataType === 'customer') ? new Fuse(customers, { keys: ['name', 'phone', 'barcode'], threshold: 0.3 }) : new Fuse(products, { keys: ['name', 'barcode'], threshold: 0.3 });
+                res = fuseObj.search(v).slice(0, 10).map(x => x.item);
+            }
             if(!res.length) { div.classList.add('hidden'); return; }
             div.innerHTML = res.map(renderCb).join(''); div.classList.remove('hidden');
         };
 
+        // Gắn sự kiện cho các ô tìm kiếm
         document.getElementById('pos-product-search').addEventListener('input', () => {
             handleSuggest('pos-product-search', 'pos-product-suggest', 'product', p => `
                 <div class="p-2 border-b border-slate-50 hover:bg-slate-50 cursor-pointer" onmousedown="addToCart('${p.id}'); document.getElementById('pos-product-search').value='';">
@@ -648,6 +635,7 @@
                 </div>`);
         });
 
+        // Ẩn gợi ý khi click ngoài
         document.addEventListener('click', (e) => {
             if(!e.target.closest('#pos-product-search') && !e.target.closest('#pos-product-suggest')) document.getElementById('pos-product-suggest').classList.add('hidden');
             if(!e.target.closest('#imp-search') && !e.target.closest('#imp-suggest')) document.getElementById('imp-suggest').classList.add('hidden');
@@ -655,6 +643,7 @@
             if(!e.target.closest('#need-search') && !e.target.closest('#need-suggest')) document.getElementById('need-suggest').classList.add('hidden');
         });
 
+        // --- BÁN & TRẢ HÀNG ---
         window.setPosCustomerById = (id) => { let c = customers.find(x=>x.id===id); if(c) setPosCustomer(c); };
         window.setPosCustomer = (c, isNew=false) => {
             currentCustomer = c;
@@ -682,10 +671,10 @@
                 sum += lineTotal;
             });
             
-            if(isReturnMode) sum = -sum; 
+            if(isReturnMode) sum = -sum; // Trả hàng -> Âm tiền
 
             let discount = 0;
-            let pointsChange = 0; 
+            let pointsChange = 0; // Số điểm sẽ cộng (hoặc trừ)
 
             if(currentCustomer) {
                 if(!isReturnMode && document.getElementById('pos-use-points').checked) {
@@ -694,8 +683,7 @@
                     if(remainder > 0 && pAmt >= remainder) discount = remainder;
                 }
                 
-                let finalForPoints = sum - discount; 
-                
+                let finalForPoints = sum - discount;
                 if(finalForPoints > 0) {
                     pointsChange = Math.floor(finalForPoints / settings.rule_amt);
                 } else if (finalForPoints < 0) {
@@ -799,7 +787,7 @@
                     items: cart.map(c => ({ id: c.id, name: c.name, hsd: c.hsd, qty: c.qty, unit: getUnitNameByLevel(c, c.sellLevel), price: getPriceByLevel(c, c.sellLevel) })),
                     total: data.final,
                     discount: data.discount, 
-                    sum: data.sum, 
+                    sum: data.sum,
                     pointsChange: data.pointsChange,
                     customer: currentCustomer ? currentCustomer.name : 'Khách lẻ', 
                     customerId: currentCustomer ? currentCustomer.id : null,
@@ -808,10 +796,12 @@
                 await addDoc(collection(db, "public_history"), record);
 
                 cart = []; renderCart(); document.getElementById('pos-cash-given').value = ''; removePosCustomer();
+                
                 showReceipt(record);
             } catch (e) { showErrorDetails("Lỗi Thanh Toán", e.message); }
         };
 
+        // --- HÓA ĐƠN & CHIA SẺ (CANVAS) ---
         window.showReceipt = (record) => {
             currentReceiptRecord = record;
             let isRet = record.type === 'return';
@@ -840,13 +830,17 @@
                 </div>
             `;
             document.getElementById('receipt-preview-content').innerHTML = previewHtml;
-            document.getElementById('btn-share-modal').classList.remove('hidden'); // Hiện nút Share Hóa Đơn
+            // Cập nhật nút Chia sẻ để gọi hàm In Hóa Đơn
+            let btnShare = document.getElementById('btn-share-receipt');
+            btnShare.innerHTML = '<i class="fa-solid fa-share-nodes"></i> Chia sẻ Hóa Đơn';
+            btnShare.onclick = () => shareReceipt();
+            
             document.getElementById('receipt-modal').classList.remove('hidden');
         };
 
         window.closeReceiptModal = () => document.getElementById('receipt-modal').classList.add('hidden');
 
-        // CHIA SẺ HÓA ĐƠN ẢNH (CANVAS A6)
+        // SHARE HÓA ĐƠN ẢNH (A6 DỌC)
         window.shareReceipt = async () => {
             if (!currentReceiptRecord) return;
             const record = currentReceiptRecord;
@@ -855,15 +849,15 @@
 
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            const scale = 2;
-            canvas.width = 420 * scale; 
-            canvas.height = 595 * scale;
+            const scale = 2; 
+            canvas.width = 420 * scale; // A6 width
+            canvas.height = 595 * scale; // A6 height
             ctx.scale(scale, scale);
 
             const bg = '#ffffff';
             const textDark = '#1e293b';
             const textLight = '#64748b';
-            const textHighlight = isRet ? '#dc2626' : '#312e81'; 
+            const textHighlight = isRet ? '#dc2626' : '#312e81';
             const fontReg = '14px sans-serif';
             const fontBold = 'bold 14px sans-serif';
             const fontSmall = '12px sans-serif';
@@ -873,7 +867,7 @@
             ctx.fillStyle = bg;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            let y = 40; 
+            let y = 40;
             const marginX = 30;
 
             ctx.fillStyle = textHighlight;
@@ -916,14 +910,13 @@
                 ctx.fillStyle = textLight;
                 ctx.font = fontSmall;
                 ctx.fillText(`${i.unit} (Lô:${i.hsd||'--'})`, marginX, y);
-                ctx.font = fontReg; 
+                ctx.font = fontReg;
 
                 ctx.textAlign = 'right';
                 ctx.fillStyle = textDark;
                 let currentY = nameLines.startY;
                 ctx.fillText(`${isRet?'-':''}${i.qty}`, 300, currentY);
                 ctx.fillText(formatMoney(i.qty * i.price), 420 - marginX, currentY);
-                
                 y += 30; 
             });
 
@@ -938,7 +931,7 @@
             y += 20;
 
             if (record.discount) {
-                ctx.fillStyle = '#dc2626'; 
+                ctx.fillStyle = '#dc2626';
                 ctx.fillText(`Trừ điểm: -${formatMoney(record.discount)}`, 420 - marginX, y);
                 y += 20;
             }
@@ -967,19 +960,101 @@
             canvas.toBlob(async (blob) => {
                 const file = new File([blob], `HoaDon_${record.orderId}.png`, { type: 'image/png' });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try { await navigator.share({ files: [file] }); } catch (err) { fallbackDownload(blob, record.orderId); }
-                } else { fallbackDownload(blob, record.orderId); }
+                    try { await navigator.share({ files: [file] }); } catch (err) { fallbackDownload(blob, `HoaDon_${record.orderId}`); }
+                } else { fallbackDownload(blob, `HoaDon_${record.orderId}`); }
             }, 'image/png', 1.0);
         };
 
-        function fallbackDownload(blob, orderId) {
+        // TẠO THẺ KHÁCH HÀNG (LOYALTY CARD VỚI QR CODE VUÔNG)
+        window.shareCustomerCard = async (id) => {
+            let c = customers.find(x => x.id === id);
+            if(!c) return;
+            showToast('Đang tạo Thẻ Khách Hàng...', 'bg-indigo-600');
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const scale = 3; 
+            const width = 400; 
+            const height = 450; // Thẻ dọc
+            canvas.width = width * scale;
+            canvas.height = height * scale;
+            ctx.scale(scale, scale);
+
+            // Nền trắng tinh tiết kiệm mực
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+
+            // Viền ngoài mỏng cho thẻ
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(1, 1, width-2, height-2);
+
+            // Text: Header
+            ctx.fillStyle = '#1e3a8a'; // Xanh Navy
+            ctx.font = '900 26px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('THUỐC TÂY LAN ANH', width / 2, 45);
+            
+            ctx.fillStyle = '#64748b'; // Xám nhạt
+            ctx.font = 'bold 14px sans-serif';
+            ctx.fillText('THẺ KHÁCH HÀNG', width / 2, 65);
+
+            // Đường kẻ ngang mờ
+            ctx.beginPath();
+            ctx.moveTo(80, 80);
+            ctx.lineTo(width-80, 80);
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Text: Tên Khách Hàng (To, Đỏ rực)
+            ctx.fillStyle = '#dc2626'; // Đỏ tươi
+            ctx.font = '900 28px sans-serif';
+            ctx.fillText(c.name.toUpperCase(), width / 2, 115);
+
+            // Text: Số điện thoại (To hơn)
+            ctx.fillStyle = '#0f172a'; // Đen xám
+            ctx.font = 'bold 18px sans-serif';
+            ctx.fillText(`SĐT: ${c.phone || '---'}`, width / 2, 145);
+
+            // Vẽ QR Code to rõ bằng thư viện qrcode
+            let barcodeValue = c.barcode || c.phone || c.id.substring(0,8);
+            try {
+                const qrSize = 200; // QR to lên rất nhiều để dễ quét
+                const qrCanvas = document.createElement('canvas');
+                await QRCode.toCanvas(qrCanvas, barcodeValue, { 
+                    width: qrSize, 
+                    margin: 1,
+                    color: { dark: '#000000', light: '#ffffff' }
+                });
+                
+                const bcX = (width - qrSize) / 2;
+                const bcY = 170;
+                ctx.drawImage(qrCanvas, bcX, bcY, qrSize, qrSize);
+            } catch (e) { console.error('Lỗi QR Code', e); }
+
+            // Lời cảm ơn (To rõ, màu xanh, phía dưới QR)
+            ctx.fillStyle = '#2563eb'; // Xanh blue
+            ctx.font = 'bold italic 17px sans-serif';
+            ctx.fillText('Cảm ơn quý khách đã tin tưởng', width / 2, 400);
+            ctx.fillText('và ủng hộ nhà thuốc!', width / 2, 425);
+
+            // Xuất ảnh và Share
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], `TheKH_${c.name}.png`, { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try { await navigator.share({ files: [file] }); } catch (err) { fallbackDownload(blob, `TheKH_${c.name}`); }
+                } else { fallbackDownload(blob, `TheKH_${c.name}`); }
+            }, 'image/png', 1.0);
+        };
+
+        function fallbackDownload(blob, filename) {
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `HoaDon_${orderId}.png`;
+            link.download = `${filename}.png`;
             link.click();
             showToast('Đã lưu ảnh!', 'bg-emerald-600');
         }
-
         function drawDashedLine(ctx, x1, y1, x2, y2, dash = [5, 3]) {
             ctx.beginPath();
             ctx.setLineDash(dash);
@@ -989,7 +1064,6 @@
             ctx.stroke();
             ctx.setLineDash([]);
         }
-
         function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
             const words = text.split(' ');
             let line = '';
@@ -997,7 +1071,8 @@
             for (let n = 0; n < words.length; n++) {
                 const testLine = line + words[n] + ' ';
                 const metrics = ctx.measureText(testLine);
-                if (metrics.width > maxWidth && n > 0) {
+                const testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
                     ctx.fillText(line, x, y);
                     line = words[n] + ' ';
                     y += lineHeight;
@@ -1009,88 +1084,7 @@
             return { y: y + lineHeight, startY: startY };
         }
 
-        // TẠO THẺ KHÁCH HÀNG (LOYALTY CARD)
-        window.shareCustomerCard = async (id) => {
-            let c = customers.find(x => x.id === id);
-            if(!c) return;
-            showToast('Đang tạo Thẻ Khách Hàng...', 'bg-indigo-600');
-
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const scale = 3; 
-            const width = 450; 
-            const height = 260; 
-            canvas.width = width * scale;
-            canvas.height = height * scale;
-            ctx.scale(scale, scale);
-
-            // Nền Gradient Navy sang trọng
-            const grd = ctx.createLinearGradient(0, 0, width, height);
-            grd.addColorStop(0, '#1e3a8a'); 
-            grd.addColorStop(1, '#0f172a'); 
-            ctx.fillStyle = grd;
-            ctx.fillRect(0, 0, width, height);
-
-            // Họa tiết chìm (Vòng tròn mờ)
-            ctx.fillStyle = 'rgba(255,255,255,0.03)';
-            ctx.beginPath(); ctx.arc(width, 0, 160, 0, 2*Math.PI); ctx.fill();
-            ctx.beginPath(); ctx.arc(0, height, 130, 0, 2*Math.PI); ctx.fill();
-
-            // Text: Header
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 24px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('THUỐC TÂY LAN ANH', width / 2, 45);
-            
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '12px sans-serif';
-            ctx.fillText('THẺ KHÁCH HÀNG THÂN THIẾT', width / 2, 65);
-
-            // Text: Tên Khách Hàng
-            ctx.fillStyle = '#fbbf24'; // Màu vàng hổ phách
-            ctx.font = 'bold 22px sans-serif';
-            ctx.fillText(c.name.toUpperCase(), width / 2, 110);
-
-            // Text: Thông tin bổ sung
-            ctx.fillStyle = '#f8fafc';
-            ctx.font = '14px sans-serif';
-            ctx.fillText(`SĐT: ${c.phone || '---'}  |  Điểm tích lũy: ${c.points || 0}`, width / 2, 135);
-
-            // Vẽ Barcode bằng JsBarcode (dùng mã vạch hoặc SĐT làm ID)
-            let barcodeValue = c.barcode || c.phone || c.id.substring(0,8);
-            try {
-                const bcCanvas = document.createElement('canvas');
-                JsBarcode(bcCanvas, barcodeValue, { 
-                    format: "CODE128", displayValue: true, height: 45, fontSize: 14, margin: 0, background: "#ffffff", lineColor: "#0f172a" 
-                });
-                const bcWidth = bcCanvas.width / 2.5; 
-                const bcHeight = bcCanvas.height / 2.5;
-                const bcX = (width - bcWidth) / 2;
-                const bcY = 160;
-                
-                // Vẽ nền trắng cho Barcode
-                ctx.fillStyle = '#ffffff';
-                ctx.beginPath();
-                ctx.rect(bcX - 10, bcY - 10, bcWidth + 20, bcHeight + 20);
-                ctx.fill();
-                
-                ctx.drawImage(bcCanvas, bcX, bcY, bcWidth, bcHeight);
-            } catch (e) { console.error('Lỗi Barcode', e); }
-
-            // Lời cảm ơn
-            ctx.fillStyle = '#64748b';
-            ctx.font = 'italic 12px sans-serif';
-            ctx.fillText('Cảm ơn quý khách đã tin tưởng và ủng hộ!', width / 2, height - 15);
-
-            // Xuất ảnh và Share
-            canvas.toBlob(async (blob) => {
-                const file = new File([blob], `TheKH_${c.name}.png`, { type: 'image/png' });
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try { await navigator.share({ files: [file] }); } catch (err) { fallbackDownload(blob, `TheKH_${c.name}`); }
-                } else { fallbackDownload(blob, `TheKH_${c.name}`); }
-            }, 'image/png', 1.0);
-        };
-
+        // --- KHÁCH HÀNG & LỊCH SỬ ---
         window.showCustomerAdd = () => { document.getElementById('customer-add-modal').classList.remove('hidden'); document.getElementById('ca-name').value=''; document.getElementById('ca-phone').value=''; document.getElementById('ca-barcode').value=''; };
         window.closeCustomerAdd = () => document.getElementById('customer-add-modal').classList.add('hidden');
         window.saveCustomerAdd = async () => {
@@ -1116,19 +1110,15 @@
                         </div>
                         <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-bold"><i class="fa-solid fa-star text-[10px]"></i> ${c.points||0}</span>
                     </div>
-                    ${c.barcode ? `<div class="mt-2 flex justify-center bg-slate-50 p-1.5 rounded-lg border border-slate-100 overflow-hidden"><svg id="bc-${c.id}" class="h-10"></svg></div>` : ''}
+                    ${c.barcode ? `<div class="mt-2 text-[10px] text-center font-bold text-slate-400 bg-slate-50 py-1 rounded">MÃ: ${c.barcode}</div>` : ''}
                 </div>`).join('');
-            
-            setTimeout(() => {
-                filtered.forEach(c => { if(c.barcode) { try { JsBarcode("#bc-"+c.id, c.barcode, {format:"CODE128", displayValue:true, height:30, fontSize:12, margin:0, background:"transparent"}); }catch(e){} } });
-            }, 50);
         };
 
         window.viewCustomerHistory = async (id) => {
             let c = customers.find(x=>x.id===id); if(!c) return;
             let hist = historyData.filter(x => x.customerId === id).sort((a,b)=>b.timestamp-a.timestamp);
             
-            let htmlList = hist.length ? hist.map(h => `
+            let htmlList = hist.map(h => `
                 <div class="bg-white p-2 rounded border border-slate-200 shadow-sm mb-2 active:bg-slate-100 cursor-pointer" onclick='showReceipt(${JSON.stringify(h).replace(/'/g, "\\'")})'>
                     <div class="flex justify-between">
                         <span class="font-bold text-indigo-700 text-xs">${h.orderId} ${h.type==='return'?'(TRẢ)':''}</span>
@@ -1139,26 +1129,27 @@
                         <span class="font-bold text-sm ${h.type==='return'?'text-red-500':''}">${formatMoney(Math.abs(h.total))}</span>
                     </div>
                 </div>
-            `).join('') : '<p class="text-xs text-slate-400 text-center py-4">Chưa có giao dịch nào trong 7 ngày qua</p>';
+            `).join('');
             
+            if(!htmlList) htmlList = '<p class="text-sm text-slate-500 text-center py-4">Chưa có giao dịch 7 ngày qua</p>';
+
             document.getElementById('receipt-preview-content').innerHTML = `
-                <div class="mb-4 bg-indigo-50 p-3 rounded-xl border border-indigo-100 flex justify-between items-center shadow-sm">
-                    <div>
-                        <h3 class="font-bold text-indigo-900">${c.name}</h3>
-                        <p class="text-xs text-indigo-600 mt-0.5">Điểm: ${c.points||0} | SĐT: ${c.phone||'---'}</p>
-                    </div>
-                    <button onclick="shareCustomerCard('${c.id}')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm active:scale-95 flex flex-col items-center gap-1 transition-transform">
-                        <i class="fa-solid fa-id-card text-lg"></i> Thẻ KH
-                    </button>
+                <div class="flex justify-between items-center mb-2 border-b pb-2">
+                    <h3 class="font-bold text-indigo-900 text-lg">${c.name}</h3>
                 </div>
-                <h3 class="font-bold text-slate-700 mb-2 border-b pb-1 text-sm">Lịch sử giao dịch:</h3>
+                <h4 class="font-bold text-slate-500 text-xs mb-2 uppercase">Lịch sử 7 ngày:</h4>
                 ${htmlList}
             `;
-            // Ẩn nút share hóa đơn khi đang xem lịch sử KH
-            document.getElementById('btn-share-modal').classList.add('hidden');
+            
+            // Cập nhật nút Chia sẻ để gọi hàm In Thẻ Khách Hàng QR Code
+            let btnShare = document.getElementById('btn-share-receipt');
+            btnShare.innerHTML = '<i class="fa-solid fa-qrcode"></i> Tạo Thẻ Khách';
+            btnShare.onclick = () => shareCustomerCard(c.id);
+
             document.getElementById('receipt-modal').classList.remove('hidden');
         };
 
+        // --- NHẬP KHO (BATCH LÔ) ---
         window.fillImportFormById = (id) => { let p = products.find(x=>x.id===id); if(p) fillImportForm(p); };
         window.fillImportForm = (p) => {
             document.getElementById('imp-refId').value = p.id || ''; 
@@ -1168,7 +1159,7 @@
             document.getElementById('imp-c12').value = p.c12 || 1; document.getElementById('imp-c23').value = p.c23 || 1;
             document.getElementById('imp-p1').value = p.p1 || ''; document.getElementById('imp-p2').value = p.p2 || ''; document.getElementById('imp-p3').value = p.p3 || '';
             document.getElementById('imp-qty').value = ''; 
-            document.getElementById('imp-hsd').value = ''; 
+            document.getElementById('imp-hsd').value = ''; // Cố ý XÓA HSD cũ
             if(p.name) showToast('Đã tải Đơn vị & Giá cũ. VUI LÒNG NHẬP HSD MỚI!', 'bg-indigo-600');
         };
 
@@ -1200,6 +1191,7 @@
         };
         window.formatHSD = (inp) => { let v = inp.value.replace(/\D/g, ''); if(v.length===6) inp.value = `${v.substring(0,2)}/${v.substring(2,4)}/20${v.substring(4,6)}`; };
 
+        // --- TỒN KHO & CHỈNH SỬA NHANH ---
         window.setFilterKho = (f) => { currentFilterKho = f; renderInventory(); };
         window.renderInventory = () => {
             let txt = document.getElementById('filter-tonkho').value.toLowerCase();
@@ -1254,6 +1246,7 @@
             if(confirm('Chắc chắn XÓA HOÀN TOÀN Lô hàng này khỏi kho?')) { try { await deleteDoc(doc(db, "public_products", id)); closeInventoryEdit(); showToast('Đã xóa Lô hàng'); } catch(e){showErrorDetails('Lỗi Xóa', e.message);} }
         };
 
+        // --- DỰ TRÙ & ĐƠN CHỜ ---
         window.addNeedAutoById = (id) => { let p=products.find(x=>x.id===id); if(p) addNeedAuto(p); document.getElementById('need-search').value=''; };
         window.addNeedAuto = async(p) => { 
             let ex = needs.find(n=>n.refId===p.id);
@@ -1306,6 +1299,7 @@
             if(p) { fillImportForm(p); document.getElementById('imp-qty').value = qty; } else { fillImportForm({}); document.getElementById('imp-name').value = name; document.getElementById('imp-barcode').value = barcode; document.getElementById('imp-qty').value = qty; showToast('Mặt hàng mới'); }
         };
 
+        // --- ADMIN & BIỂU ĐỒ & HỦY HÓA ĐƠN ---
         window.saveAdminRules = async() => { try { await setDoc(doc(db, "public_settings", "config"), { rule_amt: Number(document.getElementById('adm-rule-amt').value), rule_val: Number(document.getElementById('adm-rule-val').value) }, {merge:true}); showToast('Lưu Cấu hình OK', 'bg-emerald-600'); } catch(e){ showErrorDetails('Lỗi', e.message); } };
         
         function renderChartData() {
@@ -1355,7 +1349,7 @@
                     let pSnap = await getDoc(pRef);
                     if(pSnap.exists()) {
                         let pData = pSnap.data();
-                        let baseQty = item.qty * getQtyMultiplier(pData, item.sellLevel || 1);
+                        let baseQty = item.qty * getQtyMultiplier(pData, item.sellLevel || 1); 
                         let newStock = invoice.type === 'return' ? (pData.stock||0) - baseQty : (pData.stock||0) + baseQty;
                         await updateDoc(pRef, { stock: Math.max(0, newStock) });
                     }
@@ -1379,25 +1373,24 @@
             } catch(e) { showErrorDetails("Lỗi Hủy HĐ", e.message); }
         };
 
+        // --- CAMERA (TỐI ƯU iOS, HD & NHẬN DIỆN DIỆN RỘNG) ---
         window.generateRandomBarcode = (id, pref='SP') => document.getElementById(id).value = pref + Date.now().toString().slice(-6) + Math.floor(Math.random()*10);
         
         window.startScanner = (context) => {
             currentScanContext = context;
-            document.getElementById('scanner-modal').classList.remove('hidden'); 
-            document.getElementById('scanner-modal').classList.add('flex');
+            const modal = document.getElementById('scanner-modal');
+            modal.classList.remove('hidden'); 
+            modal.classList.add('flex');
             
             html5QrcodeScanner = new Html5Qrcode("reader");
-            // Cấu hình quét rộng không ép flash
+            
             const config = { 
                 fps: 30, 
-                qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    let minEdgePercentage = 0.75; 
-                    let width = Math.floor(viewfinderWidth * minEdgePercentage);
-                    return { width: width, height: 200 };
-                },
+                qrbox: { width: 300, height: 300 }, // Khung quét siêu bự
                 aspectRatio: 1.0 
             };
             
+            // Ép Camera chính ở chế độ cơ bản nhất, bỏ các lệnh gây crash trên iOS
             html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
             .catch(e => { 
                 showErrorDetails("Lỗi Camera", e.message); 
@@ -1406,39 +1399,31 @@
         };
         
         window.stopScanner = () => {
-            document.getElementById('scanner-modal').classList.add('hidden'); 
-            document.getElementById('scanner-modal').classList.remove('flex');
-            if(html5QrcodeScanner) { html5QrcodeScanner.stop().then(() => html5QrcodeScanner.clear()).catch(()=>{}); html5QrcodeScanner = null; }
+            const modal = document.getElementById('scanner-modal');
+            modal.classList.add('hidden'); 
+            modal.classList.remove('flex');
+            if(html5QrcodeScanner) { 
+                html5QrcodeScanner.stop().then(() => html5QrcodeScanner.clear()).catch(()=>{}); 
+                html5QrcodeScanner = null; 
+            }
         };
         
         function onScanSuccess(decoded) {
             stopScanner();
             if(currentScanContext === 'ca-barcode') { document.getElementById('ca-barcode').value = decoded; return; }
             if(currentScanContext === 'pos-customer') {
-                // 1. Quét mã KH gốc
-                let c = customers.find(x => x.barcode === decoded);
-                if(c) { setPosCustomer(c); showToast(c.name, 'bg-indigo-600'); return; }
-                
-                // 2. Tra ngược Hóa Đơn Cũ (Lịch sử 7 ngày Local)
-                let order = historyData.find(x => x.orderId === decoded);
-                if(order && order.customerId) {
-                    c = customers.find(x => x.id === order.customerId);
-                    if(c) { setPosCustomer(c); showToast(`KH từ Hóa Đơn: ${c.name}`, 'bg-indigo-600'); return; }
+                // 1. Tìm theo Khách Hàng (Quét Thẻ KH)
+                let c = customers.find(x => x.barcode === decoded || x.phone === decoded);
+                if(c) { setPosCustomer(c); showToast(c.name, 'bg-indigo-600'); return; } 
+
+                // 2. Tìm theo Hóa Đơn (Truy ngược KH từ Hóa Đơn cũ)
+                let invoice = historyData.find(x => x.orderId === decoded);
+                if(invoice && invoice.customerId) {
+                    let invC = customers.find(x => x.id === invoice.customerId);
+                    if(invC) { setPosCustomer(invC); showToast(`KH từ Hóa Đơn: ${invC.name}`, 'bg-emerald-600'); return; }
                 }
 
-                // 3. Tra ngược Hóa Đơn (Mây - Tìm sâu hơn)
-                showToast('Đang tra cứu dữ liệu cũ...', 'bg-indigo-600');
-                getDocs(query(collection(db, "public_history"), where("orderId", "==", decoded))).then(snap => {
-                    if(!snap.empty) {
-                        let docData = snap.docs[0].data();
-                        if(docData.customerId) {
-                            let cloudC = customers.find(x => x.id === docData.customerId);
-                            if(cloudC) { setPosCustomer(cloudC); showToast(`KH từ HĐ cũ: ${cloudC.name}`, 'bg-emerald-600'); return; }
-                        }
-                    }
-                    showToast(`Không tìm thấy KH hoặc Hóa đơn!`, 'bg-amber-500');
-                }).catch(() => showToast(`Lỗi truy cập dữ liệu!`, 'bg-amber-500'));
-                return;
+                showToast(`Chưa có KH hoặc Hóa Đơn này!`, 'bg-amber-500'); return;
             }
             
             let p = products.find(x => x.barcode === decoded);
