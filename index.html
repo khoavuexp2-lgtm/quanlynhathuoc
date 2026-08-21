@@ -981,20 +981,45 @@
         window.editInventory = (id) => {
             let p = products.find(x=>x.id===id); if(!p) return;
             document.getElementById('ie-id').value = id;
-            document.getElementById('ie-name').innerText = p.name;
-            document.getElementById('ie-batch-info').innerText = `Lô: ${p.hsd||'--'} | QC: ${formatQuyCach(p)}`;
-            document.getElementById('ie-stock').value = p.stock || 0; document.getElementById('ie-hsd').value = p.hsd || '';
-            document.getElementById('ie-p1').value = p.p1 || 0; document.getElementById('ie-p2').value = p.p2 || 0; document.getElementById('ie-p3').value = p.p3 || 0;
+            document.getElementById('ie-name').value = p.name || '';
+            document.getElementById('ie-barcode').value = p.barcode || '';
+            document.getElementById('ie-u1').value = p.u1 || 'Hộp';
+            document.getElementById('ie-u2').value = p.u2 || 'Vỉ';
+            document.getElementById('ie-u3').value = p.u3 || 'Viên';
+            document.getElementById('ie-c12').value = p.c12 || 1;
+            document.getElementById('ie-c23').value = p.c23 || 1;
+            document.getElementById('ie-stock').value = p.stock || 0; 
+            document.getElementById('ie-hsd').value = p.hsd || '';
+            document.getElementById('ie-p1').value = p.p1 || 0; 
+            document.getElementById('ie-p2').value = p.p2 || 0; 
+            document.getElementById('ie-p3').value = p.p3 || 0;
             document.getElementById('inventory-edit-modal').classList.remove('hidden');
         };
         window.closeInventoryEdit = () => document.getElementById('inventory-edit-modal').classList.add('hidden');
         
         window.saveInventoryEdit = async () => {
             let id = document.getElementById('ie-id').value;
+            let name = document.getElementById('ie-name').value.trim();
+            if(!name) return showToast('Vui lòng nhập Tên sản phẩm', 'bg-amber-500');
+
+            let barcode = document.getElementById('ie-barcode').value.trim();
+            let u1 = document.getElementById('ie-u1').value;
+            let u2 = document.getElementById('ie-u2').value;
+            let u3 = document.getElementById('ie-u3').value;
+            let c12 = Number(document.getElementById('ie-c12').value)||1;
+            let c23 = Number(document.getElementById('ie-c23').value)||1;
+
             let stock = Number(document.getElementById('ie-stock').value) || 0;
             let hsd = document.getElementById('ie-hsd').value;
             let p1 = Number(document.getElementById('ie-p1').value)||0, p2 = Number(document.getElementById('ie-p2').value)||0, p3 = Number(document.getElementById('ie-p3').value)||0;
-            try { await updateDoc(doc(db, "public_products", id), {stock, hsd, p1, p2, p3}); closeInventoryEdit(); showToast('Đã cập nhật Lô hàng', 'bg-emerald-600'); } 
+            
+            try { 
+                await updateDoc(doc(db, "public_products", id), {
+                    name, barcode, u1, u2, u3, c12, c23, stock, hsd, p1, p2, p3
+                }); 
+                closeInventoryEdit(); 
+                showToast('Đã cập nhật Lô hàng', 'bg-emerald-600'); 
+            } 
             catch(e) { showToast('Lỗi Cập nhật', 'bg-red-600'); }
         };
         
