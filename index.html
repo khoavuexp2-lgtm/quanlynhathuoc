@@ -595,25 +595,29 @@
 
         document.getElementById('pos-product-search').addEventListener('input', () => handleSuggest('pos-product-search', 'pos-product-suggest', 'product', p => `
             <div class="p-2 border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onmousedown="addToCart('${p.id}'); document.getElementById('pos-product-search').value='';">
-                <div class="flex justify-between items-start"><span class="font-bold text-sm truncate pr-2 leading-tight">${p.name}</span> <span class="text-[10px] ${isHSDWarning(p.hsd)?'text-red-500 font-bold':'text-slate-400'} whitespace-nowrap mt-0.5">Lô:${p.hsd||'--'}</span></div>
+                <div class="flex justify-between items-start"><span class="font-bold text-sm truncate pr-2 leading-tight">${p.name}</span> <span class="text-[10px] ${isHSDWarning(p.hsd)?'text-red-500 font-bold':'text-slate-400'} whitespace-nowrap mt-0.5">Lô: ${p.hsd||'--'}</span></div>
                 <div class="flex justify-between items-end mt-1"><span class="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">${formatPackaging(p)}</span> <span class="text-xs font-bold text-indigo-700">Tồn: ${formatStock(p)}</span></div>
+                <div class="text-[10px] text-red-500 font-medium mt-1">Giá: ${formatMoney(p.p1||0)} / ${formatMoney(p.p2||0)} / ${formatMoney(p.p3||0)}</div>
             </div>`));
         
         document.getElementById('imp-search').addEventListener('input', () => handleSuggest('imp-search', 'imp-suggest', 'product', p => `
             <div class="p-2 border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onmousedown="fillImportFormById('${p.id}'); document.getElementById('imp-search').value='';">
-                <div class="font-bold text-sm truncate leading-tight">${p.name}</div>
-                <div class="flex justify-between items-center mt-1"><span class="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">${formatPackaging(p)}</span> <span class="text-[10px] font-bold text-indigo-700">Đang có: ${formatStock(p)}</span></div>
+                <div class="flex justify-between items-start"><span class="font-bold text-sm truncate pr-2 leading-tight">${p.name}</span> <span class="text-[10px] ${isHSDWarning(p.hsd)?'text-red-500 font-bold':'text-slate-400'} whitespace-nowrap mt-0.5">Lô: ${p.hsd||'--'}</span></div>
+                <div class="flex justify-between items-end mt-1"><span class="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">${formatPackaging(p)}</span> <span class="text-[10px] font-bold text-indigo-700">Đang có: ${formatStock(p)}</span></div>
+                <div class="text-[10px] text-red-500 font-medium mt-1">Giá: ${formatMoney(p.p1||0)} / ${formatMoney(p.p2||0)} / ${formatMoney(p.p3||0)}</div>
             </div>`));
 
         document.getElementById('need-search').addEventListener('input', () => handleSuggest('need-search', 'need-suggest', 'product', p => `
             <div class="p-2 border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onmousedown="addNeedAutoById('${p.id}')">
-                <div class="font-bold text-sm truncate leading-tight">${p.name}</div>
-                <div class="flex justify-between items-center mt-1"><span class="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">${formatPackaging(p)}</span> <span class="text-[10px] font-bold text-indigo-700">Tồn: ${formatStock(p)}</span></div>
+                <div class="flex justify-between items-start"><span class="font-bold text-sm truncate pr-2 leading-tight">${p.name}</span> <span class="text-[10px] ${isHSDWarning(p.hsd)?'text-red-500 font-bold':'text-slate-400'} whitespace-nowrap mt-0.5">Lô: ${p.hsd||'--'}</span></div>
+                <div class="flex justify-between items-end mt-1"><span class="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">${formatPackaging(p)}</span> <span class="text-[10px] font-bold text-indigo-700">Tồn: ${formatStock(p)}</span></div>
+                <div class="text-[10px] text-red-500 font-medium mt-1">Giá: ${formatMoney(p.p1||0)} / ${formatMoney(p.p2||0)} / ${formatMoney(p.p3||0)}</div>
             </div>`));
 
         document.getElementById('pos-customer-search').addEventListener('input', () => handleSuggest('pos-customer-search', 'pos-customer-suggest', 'customer', c => `
             <div class="p-2 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex justify-between items-center" onmousedown="setPosCustomerById('${c.id}'); document.getElementById('pos-customer-search').value='';">
-                <div><p class="font-bold text-sm text-indigo-900">${c.name}</p><p class="text-[10px] text-slate-400">${c.phone||c.barcode||'--'}</p></div><span class="text-xs font-bold text-amber-500 bg-amber-50 px-2 py-1 rounded"><i class="fa-solid fa-star text-[10px]"></i> ${c.points||0}</span>
+                <div><p class="font-bold text-sm text-indigo-900">${c.name}</p><p class="text-[10px] text-slate-500 font-medium mt-0.5"><i class="fa-solid fa-phone"></i> ĐT: ${c.phone||'--'} | Mã: ${c.barcode||'--'}</p></div>
+                <span class="text-xs font-bold text-amber-500 bg-amber-50 px-2 py-1 rounded shadow-sm border border-amber-100"><i class="fa-solid fa-star text-[10px]"></i> ${c.points||0}</span>
             </div>`));
 
         document.addEventListener('click', (e) => {
@@ -948,12 +952,15 @@
                             <button onclick="editInventory('${p.id}')" class="bg-red-50 text-red-600 w-8 h-8 rounded-lg flex items-center justify-center border border-red-100 shadow-sm active:bg-red-100"><i class="fa-solid fa-pen-to-square text-xs"></i></button>
                         </div>
                     </div>
-                    <div class="flex justify-between items-end">
+                    <div class="flex justify-between items-end mb-1">
                         <div>
                             <div class="text-[10px] text-slate-500 font-medium">QC: ${formatPackaging(p)}</div>
                             <div class="text-xs text-slate-500 mt-0.5">Lô/HSD: <span class="font-bold ${isHSDWarning(p.hsd)?'text-red-500':'text-indigo-600'}">${p.hsd||'--'}</span></div>
                         </div>
                         <span class="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 text-xs">${formatStock(p)}</span>
+                    </div>
+                    <div class="text-[11px] text-red-600 font-medium border-t border-dashed border-slate-100 pt-1.5 mt-1.5">
+                        Giá: ${formatMoney(p.p1||0)} / ${formatMoney(p.p2||0)} / ${formatMoney(p.p3||0)}
                     </div>
                 </div>`).join('');
         };
