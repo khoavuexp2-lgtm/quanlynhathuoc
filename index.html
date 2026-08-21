@@ -936,12 +936,25 @@
 
         // --- TỒN KHO & CHỈNH SỬA NHANH ---
         window.setFilterKho = (f) => { currentFilterKho = f; renderInventory(); };
+        
         window.renderInventory = () => {
-            let t = document.getElementById('filter-tonkho').value.toLowerCase();
-            let res = products.filter(p => (p.name&&p.name.toLowerCase().includes(t)) || (p.barcode&&p.barcode.includes(t)));
+            let t = document.getElementById('filter-tonkho').value.trim();
+            let res = products;
+            
+            // Tìm kiếm thông minh (Fuzzy Search) không dấu
+            if (t) {
+                let fz = new Fuse(products, {keys:['name','barcode'], threshold:0.3});
+                res = fz.search(t).map(x=>x.item);
+            }
+            
             if(currentFilterKho === 'low') res = res.filter(p => (p.stock||0) <= 5*(p.c12||1)*(p.c23||1));
             if(currentFilterKho === 'date') res = res.filter(p => isHSDWarning(p.hsd));
-            res.sort((a,b) => { let da = a.hsd?dayjs(a.hsd,'DD/MM/YYYY').unix():9999999999, db = b.hsd?dayjs(b.hsd,'DD/MM/YYYY').unix():9999999999; return (da!==db) ? da-db : a.name.localeCompare(b.name); });
+            
+            res.sort((a,b) => { 
+                let da = a.hsd ? dayjs(a.hsd,'DD/MM/YYYY').unix() : 9999999999;
+                let db = b.hsd ? dayjs(b.hsd,'DD/MM/YYYY').unix() : 9999999999;
+                return (da!==db) ? da-db : (a.name || '').localeCompare(b.name || ''); 
+            });
             
             document.getElementById('inventory-list').innerHTML = res.map(p => `
                 <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm mb-2">
